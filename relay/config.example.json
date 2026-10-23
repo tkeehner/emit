@@ -1,0 +1,5 @@
+{
+ "token": "YOUR_TOKEN",
+ "max_rooms": 64,
+ "max_conns": 256
+}

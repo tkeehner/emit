@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="mms" path="mms/" />
+    <cache-path name="camera" path="camera/" />
+    <cache-path name="paste" path="paste/" />
+    <cache-path name="logs" path="logs/" />
+</paths>

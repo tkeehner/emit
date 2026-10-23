@@ -1,0 +1,10 @@
+# Emit relay/client configuration example. Copy values into your own (gitignored) config; never commit real values.
+# PC:    msms relay set --host $RELAY_HOST --port $RELAY_PORT --fingerprint $RELAY_CERT_SHA256 --token-file client.json
+# Phone: receives these over the paired LAN link with `msms relay push`, or enter them in LINK > relay.
+RELAY_HOST=your-server            # public IP or hostname of your relay (x.x.x.x)
+RELAY_PORT=443
+RELAY_CERT_SHA256=YOUR_CERT_SHA256_FINGERPRINT   # 64 hex chars, printed by relay/install.sh
+RELAY_TOKEN=YOUR_TOKEN                           # from /etc/msms-relay/token on the server
+# Optional @bot webhook (PC companion): msms bot set --url ... --key-file ...
+BOT_WEBHOOK_URL=https://your-webhook.example/endpoint
+BOT_WEBHOOK_KEY_FILE=/path/to/YOUR_WEBHOOK_KEY.txt

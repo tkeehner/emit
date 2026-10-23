@@ -1,0 +1,40 @@
+# Build outputs
+build/
+**/build/
+.gradle/
+.kotlin/
+dist/
+publish/
+*.apk
+*.aab
+__pycache__/
+*.pyc
+.pytest_cache/
+pc-companion/python/
+# Local / secret config (never commit)
+local.properties
+keystore.properties
+config.json
+client.json
+relay.json
+token
+token.txt
+*.token
+.env
+# Keys and certs
+*.jks
+*.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+# Logs, dumps, backups
+*.log
+dump/
+backup*/
+*.bak
+# Ad and sound files
+*.wav
+*.mp3
+*.ogg
+*.m4a
