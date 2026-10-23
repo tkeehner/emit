@@ -3,6 +3,17 @@
 ## What it is
 Emit is an Android SMS/MMS app with a Windows companion and an optional self-hosted relay. You can read and draft texts from your PC, or let an AI assistant draft them. Nothing is sent until you approve it on the phone.
 
+<table>
+<tr>
+<td align="center"><img src="screenshots/01-inbox.png" width="200" alt="Inbox"><br><sub>Inbox with the pinned assistant chat</sub></td>
+<td align="center"><img src="screenshots/02-conversation.png" width="200" alt="Conversation"><br><sub>A conversation and the compose bar</sub></td>
+<td align="center"><img src="screenshots/03-bot-chat.png" width="200" alt="Assistant chat"><br><sub>Assistant chat (never over SMS)</sub></td>
+<td align="center"><img src="screenshots/04-link-setup.png" width="200" alt="Relay setup"><br><sub>Relay link setup</sub></td>
+</tr>
+</table>
+
+<sub>Screenshots use made-up contacts and placeholder relay details.</sub>
+
 ## Features
 - SMS/MMS messaging, group chats, scheduling, quick reply, link previews, a custom keyboard, and voice-to-text
 - An assistant chat over the PC link (never goes over SMS)
