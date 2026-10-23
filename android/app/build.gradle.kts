@@ -56,7 +56,7 @@ dependencies {
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("org.json:json:20240303")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.77")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 }
 tasks.withType<Test>().configureEach { System.getProperty("shot.out")?.let { systemProperty("shot.out", it) } }
