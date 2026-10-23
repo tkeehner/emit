@@ -678,6 +678,8 @@ fun TerminalField(
     bare: Boolean = false,
     textSize: androidx.compose.ui.unit.TextUnit = TypeScale.Body,
     maxLinesMulti: Int = 5,
+    /** Receives the cursor position whenever it changes (used by voice input to insert at the cursor). */
+    onCursor: ((Int) -> Unit)? = null,
 ) {
     val kb = LocalKb.current
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -690,6 +692,8 @@ fun TerminalField(
     // Single source of truth is tfv (text + selection). External changes (e.g. cleared after send) are reconciled
     // with a clamped selection.
     if (tfv.text != value) tfv = FieldSync.reconcile(tfv, value)
+    val latestCursor by rememberUpdatedState(onCursor)
+    LaunchedEffect(tfv.selection.start) { latestCursor?.invoke(tfv.selection.start) }
     val latestChange by rememberUpdatedState(onChange)
     val phone = keyboardType == KeyboardType.Phone
     val latestMedia by rememberUpdatedState(onPasteMedia)
@@ -728,7 +732,7 @@ fun TerminalField(
         tfv, { v -> val c = FieldSync.clamp(v); tfv = c; latestChange(c.text) },
         readOnly = custom,
         textStyle = FieldText.style(Green, textSize),
-        cursorBrush = SolidColor(Green), singleLine = singleLine, minLines = 1, maxLines = if (singleLine) 1 else maxLinesMulti,
+        cursorBrush = SolidColor(Green), singleLine = singleLine, minLines = 1, maxLines = if (singleLine) 1 else Int.MAX_VALUE,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = KeyboardCapitalization.Sentences),
         onTextLayout = { layout = it },
         modifier = modifier.focusRequester(focusRequester).onFocusChanged { st ->
@@ -756,17 +760,39 @@ fun TerminalField(
                             modifier = Modifier.padding(start = if (active) 10.dp else 0.dp))
                     }
                     val green = Green
-                    Box(Modifier.clipToBounds().drawWithContent {
+                    val cursorBox = Modifier.drawWithContent {
                         drawContent()
                         val l = layout
                         // Only draw from a layout of the CURRENT text; otherwise wait a frame.
                         if (active && custom && blink && l != null && l.layoutInput.text.text == tfv.text) {
                             val r = CursorMath.rect(l, tfv.selection.start)
                             val cw = 5.dp.toPx()  // ▌ half block
-                            val pos = CursorMath.fit(r.left, r.top, r.height, cw, size.width, size.height, l.size.width.toFloat(), l.size.height.toFloat())
-                            clipRect { drawRect(green, Offset(pos.first, pos.second), Size(cw, r.height.coerceAtMost(size.height))) }
+                            if (singleLine) {
+                                val pos = CursorMath.fit(r.left, r.top, r.height, cw, size.width, size.height, l.size.width.toFloat(), l.size.height.toFloat())
+                                clipRect { drawRect(green, Offset(pos.first, pos.second), Size(cw, r.height.coerceAtMost(size.height))) }
+                            } else {
+                                // 0.1.45: multi-line text is never scrolled internally (we own the scroll below), so layout
+                                // coordinates == our coordinates and the cursor is drawn exactly where the selection is.
+                                drawRect(green, Offset(r.left.coerceIn(0f, (size.width - cw).coerceAtLeast(0f)), r.top), Size(cw, r.height))
+                            }
                         }
-                    }) { inner() }
+                    }
+                    if (singleLine) Box(Modifier.clipToBounds().then(cursorBox)) { inner() }
+                    else {
+                        // Own vertical scroll capped at maxLinesMulti lines; keeps the cursor line visible.
+                        val scroll = androidx.compose.foundation.rememberScrollState()
+                        val l = layout
+                        val cap = l?.let { CursorMath.viewportHeight(it, maxLinesMulti) }
+                        LaunchedEffect(tfv.selection, l) {
+                            if (l != null && cap != null && l.layoutInput.text.text == tfv.text) {
+                                val r = CursorMath.rect(l, tfv.selection.start)
+                                val to = CursorMath.scrollToShow(scroll.value, cap, r.top, r.bottom)
+                                if (to != scroll.value) scroll.scrollTo(to)
+                            }
+                        }
+                        val capMod = if (cap != null) Modifier.heightIn(max = with(androidx.compose.ui.platform.LocalDensity.current) { cap.toDp() }) else Modifier
+                        Box(capMod.clipToBounds().verticalScroll(scroll)) { Box(cursorBox) { inner() } }
+                    }
                 }
                 if (active && kb.useSystem) Text(" [mx]", color = Green, fontFamily = Mono, fontSize = TypeScale.Label,
                     modifier = Modifier.tap { kb.useSystem = false })
@@ -787,7 +813,8 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
     val bodyText = if (quoted) text.substringAfter('\n') else text
     val edit: (String) -> Unit = { onChange(if (quoted) quoteLine + "\n" + it else it) }
     val curBody by rememberUpdatedState(bodyText); val curEdit by rememberUpdatedState(edit)
-    val voice = rememberVoiceInput { spoken -> curEdit(VoiceText.merge(curBody, spoken)) }
+    var cursor by remember { mutableIntStateOf(Int.MAX_VALUE) }  // MAX = end (never tapped)
+    val voice = rememberVoiceInput { spoken -> curEdit(VoiceText.insertAt(curBody, cursor, spoken).first) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
         if (voice.listening) Text("● listening… " + voice.partial.ifEmpty { "speak now" }, color = Green, fontFamily = Mono, fontSize = TypeScale.Meta,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite })
@@ -812,7 +839,7 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
         Column(Modifier.fillMaxWidth().shadow(12.dp, Pal.R12, ambientColor = Color.Black, spotColor = Color.Black).panel(Pal.S2c.copy(alpha = Pal.BUBBLE_A), Pal.Line2, Pal.R12)
             .padding(horizontal = 4.dp, vertical = 2.dp)) {
             TerminalField(bodyText, edit, "> ", "type message_", Modifier.fillMaxWidth().testTag("compose_field"), focusRequester = fr, onPasteMedia = onPasteMedia, bare = true,
-                textSize = FieldText.SIZE, maxLinesMulti = FieldText.MAX_LINES)
+                textSize = FieldText.SIZE, maxLinesMulti = FieldText.MAX_LINES, onCursor = { cursor = it })
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(1.dp).background(Pal.Line))
             Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 val shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)

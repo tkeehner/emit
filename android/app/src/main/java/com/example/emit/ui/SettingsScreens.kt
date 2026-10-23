@@ -156,6 +156,7 @@ fun LockScreen(onPrompt: () -> Unit, onUnlocked: () -> Unit) {
 
 object Changelog {
     val entries = listOf(
+        "0.1.45" to "fix: tapping inside the message box now puts the green cursor where you tap (typing, backspace and voice insert there)",
         "0.1.44" to "roomier compose box: full-width text field that grows to 5 lines, wraps on whole words, slightly smaller text; +, mic, timer and SEND moved to a compact row underneath",
         "0.1.43" to "voice to text: mic button in every compose bar (threads + Prime). Dictates into the box only - never auto-sends; edit, then tap SEND. Mic permission asked on first tap",
         "0.1.42" to "relay hardening: TLS 1.3 only, shorter log retention",

@@ -37,4 +37,15 @@ object CursorMath {
         val fy = if (textH > boxH && y > maxY) maxY else y.coerceIn(0f, maxY)
         return fx to fy
     }
+
+    /** Pixel height of the first [maxLines] lines (the visible window of a multi-line field). */
+    fun viewportHeight(l: TextLayoutResult, maxLines: Int): Int =
+        if (l.lineCount <= maxLines) l.size.height else kotlin.math.ceil(l.getLineBottom(maxLines - 1)).toInt()
+
+    /** New scroll offset so the cursor span [top, bottom] lies inside a window of [viewH] starting at [scroll]. */
+    fun scrollToShow(scroll: Int, viewH: Int, top: Float, bottom: Float): Int = when {
+        top < scroll -> kotlin.math.floor(top).toInt().coerceAtLeast(0)
+        bottom > scroll + viewH -> kotlin.math.ceil(bottom - viewH).toInt().coerceAtLeast(0)
+        else -> scroll
+    }
 }

@@ -15,6 +15,24 @@ import androidx.core.content.ContextCompat
 
 /** Pure helpers (unit-tested). Dictation only ever fills the field; it never sends. */
 object VoiceText {
+    /**
+     * Insert dictated [spoken] at cursor [pos] in [base] (0.1.45). At/after the end this is exactly [merge]; in the
+     * middle it adds single spaces around the words and capitalizes after a sentence end. Returns text + new cursor.
+     */
+    fun insertAt(base: String, pos: Int, spoken: String): Pair<String, Int> {
+        val p = pos.coerceIn(0, base.length)
+        val s = spoken.trim()
+        if (s.isEmpty()) return base to p
+        if (base.substring(p).isBlank()) { val m = merge(base.substring(0, p), s); return m to m.length }
+        val before = base.substring(0, p).trimEnd(' ')
+        val after = base.substring(p).trimStart(' ')
+        val cap = before.isEmpty() || before.endsWith('.') || before.endsWith('!') || before.endsWith('?') || before.endsWith('\n')
+        val word = if (cap) s.replaceFirstChar { it.uppercase() } else s
+        val lead = if (before.isEmpty() || before.endsWith('\n')) before else "$before "
+        val mid = lead + word
+        val sep = if (after.isEmpty() || after[0] in ".,!?;:\n") "" else " "
+        return (mid + sep + after) to mid.length
+    }
     /** Append dictated [spoken] to existing [base] with a single space; capitalizes after sentence end / empty. */
     fun merge(base: String, spoken: String): String {
         val s = spoken.trim()
