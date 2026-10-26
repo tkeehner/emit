@@ -89,12 +89,15 @@ fun Chip(label: String, on: Boolean = false, color: Color = Pal.Primary, desc: S
     }
 }
 
-/** Pill toggle (48dp touch row is the caller's). */
+/** Pill toggle (48dp touch row is the caller's). Cut themes use a small chamfer; an 11dp cut would eat the track. */
 @Composable
 fun Pill(on: Boolean) {
-    Box(Modifier.size(38.dp, 22.dp).panel(if (on) Pal.ToggleOn else Pal.ToggleOff, if (on) Pal.OutLine else Pal.Line2, LocalTheme.current.shape(11.dp)),
+    val cut = LocalTheme.current.corners == CornerStyle.CUT
+    val track = if (cut) CutCornerShape(3.dp, 3.dp) else androidx.compose.foundation.shape.RoundedCornerShape(11.dp)
+    val knob = if (cut) CutCornerShape(2.dp, 2.dp) else androidx.compose.foundation.shape.CircleShape
+    Box(Modifier.size(38.dp, 22.dp).panel(if (on) Pal.ToggleOn else Pal.ToggleOff, if (on && cut) Pal.Primary else if (on) Pal.OutLine else Pal.Line2, track),
         contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart) {
-        Box(Modifier.padding(horizontal = 3.dp).size(14.dp).background(if (on) Pal.Primary else Pal.Faint, androidx.compose.foundation.shape.CircleShape))
+        Box(Modifier.padding(horizontal = 3.dp).size(14.dp).background(if (on) Pal.Primary else Pal.Faint, knob))
     }
 }
 
@@ -114,6 +117,35 @@ object RainPref {
     val level = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
     fun load(c: android.content.Context): Int = level.value ?: c.getSharedPreferences("ui_prefs", 0).getInt("rain", 1).coerceIn(0, 2).also { level.value = it }
     fun set(c: android.content.Context, v: Int) { c.getSharedPreferences("ui_prefs", 0).edit().putInt("rain", v).apply(); level.value = v }
+}
+
+/** Glitch and key-glow. Both default on, same prefs file as rain. Off skips the effect; it does not add a redraw loop. */
+object EffectPrefs {
+    private const val P = "ui_prefs"
+    val glitch = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    val keyGlow = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    fun glitchOn(c: android.content.Context): Boolean =
+        glitch.value ?: c.getSharedPreferences(P, 0).getBoolean("glitch", true).also { glitch.value = it }
+    fun setGlitch(c: android.content.Context, on: Boolean) { c.getSharedPreferences(P, 0).edit().putBoolean("glitch", on).apply(); glitch.value = on }
+    fun keyGlowOn(c: android.content.Context): Boolean =
+        keyGlow.value ?: c.getSharedPreferences(P, 0).getBoolean("key_glow", true).also { keyGlow.value = it }
+    fun setKeyGlow(c: android.content.Context, on: Boolean) { c.getSharedPreferences(P, 0).edit().putBoolean("key_glow", on).apply(); keyGlow.value = on }
+}
+
+@Composable
+fun glitchEnabled(): Boolean {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v by EffectPrefs.glitch.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { EffectPrefs.glitchOn(ctx) }
+    return v ?: true
+}
+
+@Composable
+fun keyGlowEnabled(): Boolean {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v by EffectPrefs.keyGlow.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { EffectPrefs.keyGlowOn(ctx) }
+    return v ?: true
 }
 @androidx.compose.runtime.Composable
 fun rainAlpha(): Float {

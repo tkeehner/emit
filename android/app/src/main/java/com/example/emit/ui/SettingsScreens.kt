@@ -25,10 +25,14 @@ import androidx.compose.foundation.layout.width
 import com.example.emit.link.AppLock
 
 @Composable
-private fun Toggle(label: String, on: Boolean, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10)
+private fun Toggle(label: String, on: Boolean, subtitle: String? = null, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10)
     .semantics(mergeDescendants = true) { role = Role.Switch; stateDescription = if (on) "on" else "off" }.tap { f() }
     .padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-    Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
+    if (subtitle == null) Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
+    else Column(Modifier.weight(1f)) {
+        Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Body)
+        Text(subtitle, color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
+    }
     Spacer(Modifier.width(10.dp)); Pill(on)
 }
 
@@ -81,6 +85,10 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
                         .tap { RainPref.set(ctx, i) }.padding(horizontal = 2.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { Chip(l, on) }
                 }
             }
+            var glitch by remember { mutableStateOf(EffectPrefs.glitchOn(ctx)) }
+            var keyGlow by remember { mutableStateOf(EffectPrefs.keyGlowOn(ctx)) }
+            Toggle("glitch effects", glitch, "screen-change glitch, avatar flicker") { glitch = !glitch; EffectPrefs.setGlitch(ctx, glitch) }
+            Toggle("key press glow", keyGlow, "neon glow + popup on keys") { keyGlow = !keyGlow; EffectPrefs.setKeyGlow(ctx, keyGlow) }
             Toggle("link previews (fetch title + domain; off = nothing fetched)", prev) { prev = !prev; UiPrefs.setPreviews(ctx, prev) }
             Section("PC link & Prime")
             Toggle("PC app may approve sends", pcApproval) { pcApproval = !pcApproval; store.allowPcApproval = pcApproval }
@@ -188,7 +196,9 @@ fun AboutScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     var crash by remember { mutableStateOf(com.example.emit.CrashLog.read(ctx)) }
     var showOfl by remember { mutableStateOf(false) }
+    var showOx by remember { mutableStateOf(false) }
     val ofl = remember { runCatching { ctx.assets.open("licenses/JetBrainsMono-OFL.txt").bufferedReader().readText() }.getOrDefault("(license file missing)") }
+    val oxanium = remember { runCatching { ctx.assets.open("licenses/Oxanium-OFL.txt").bufferedReader().readText() }.getOrDefault("(license file missing)") }
     Column(Modifier.fillMaxSize().background(Black)) {
         Header(LocalTheme.current.chrome.about, onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Ui.ScreenPad)) {
@@ -201,6 +211,10 @@ fun AboutScreen(onBack: () -> Unit) {
             Text("JetBrains Mono — SIL Open Font License 1.1", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
             Text(if (showOfl) "[ hide license ]" else "[ show license ]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.tap { showOfl = !showOfl })
             if (showOfl) Text(ofl, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
+            Spacer(Modifier.height(8.dp))
+            Text("Oxanium — SIL Open Font License 1.1", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
+            Text(if (showOx) "[ hide license ]" else "[ show license ]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.tap { showOx = !showOx })
+            if (showOx) Text(oxanium, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Section("crash log (on this phone only)")
             if (crash.isBlank()) Text("  no crashes recorded", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             else {

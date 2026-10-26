@@ -24,10 +24,10 @@ enum class RainStyle { KATAKANA, DRIZZLE }
 enum class AvatarStyle { KATAKANA, GLYPH }
 
 /** Which bundled face a role uses. Resolved in composition so the theme stays JVM-testable. */
-enum class FontId { MONO }
+enum class FontId { MONO, OXANIUM }
 
-/** Pressed-key treatment. MATRIX is today's face; other styles are opt-in per theme. */
-enum class KeyStyle { MATRIX }
+/** Pressed-key treatment. MATRIX is today's face; NEON fills the key and pops a glowing glyph. */
+enum class KeyStyle { MATRIX, NEON }
 
 /**
  * Every color the UI paints, as opaque (or explicitly translucent) ARGB.
@@ -120,6 +120,8 @@ data class ThemeChrome(
     val uppercaseNames: Boolean,
     val sectionSlash: Boolean,
     val rainLabel: String,
+    /** Floating inbox action. Matrix keeps the bracketed label. */
+    val fab: String,
 )
 
 data class EmitTheme(
@@ -246,11 +248,12 @@ val MatrixTheme = EmitTheme(
         uppercaseNames = false,
         sectionSlash = false,
         rainLabel = "background rain",
+        fab = "[+ NEW]",
     ),
 )
 
 object Themes {
-    val all: List<EmitTheme> = listOf(MatrixTheme)
+    val all: List<EmitTheme> = listOf(MatrixTheme, NeonCityTheme)
     fun byId(id: String?): EmitTheme = all.firstOrNull { it.id == id } ?: MatrixTheme
 }
 
@@ -259,11 +262,17 @@ val LocalTheme = staticCompositionLocalOf { MatrixTheme }
 @Composable
 fun FontId.family(): FontFamily = when (this) {
     FontId.MONO -> Mono
+    FontId.OXANIUM -> Oxanium
 }
 
 val UiFont: FontFamily @Composable get() = LocalTheme.current.bodyFont.family()
 val DisplayFont: FontFamily @Composable get() = LocalTheme.current.displayFont.family()
 val KeyFont: FontFamily @Composable get() = LocalTheme.current.keyFont.family()
+
+/** Neon City's default chat uses the theme's own bubble colors. A picked chat color still tints. */
+@Composable
+fun fixedDefaultChat(): Boolean =
+    LocalTheme.current.fixedBubbles && LocalAccent.current.argb == ChatPalette.DEFAULT.argb
 
 @Composable
 fun groupedShape(top: Boolean, bottom: Boolean): Shape {

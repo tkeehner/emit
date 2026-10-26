@@ -81,15 +81,19 @@ private fun stamp(t: Long): String =
 
 
 @Composable
-fun Header(title: String, onBack: (() -> Unit)? = null, chips: Boolean = true, extraChip: String? = null, trailing: (@Composable () -> Unit)? = null) {
+fun Header(title: String, onBack: (() -> Unit)? = null, chips: Boolean = true, extraChip: String? = null, trailing: (@Composable () -> Unit)? = null, leading: (@Composable () -> Unit)? = null) {
     val crt = LocalCrt.current
-    val glow = crt || LocalTheme.current.titleGlow
+    val theme = LocalTheme.current
+    val glow = crt || theme.titleGlow
+    val display = theme.displayFont == FontId.OXANIUM
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp).padding(top = 4.dp, bottom = 6.dp)) {
-        Row(Modifier.fillMaxWidth().panel().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().panel(line = if (theme.titleGlow) Pal.Primary.copy(alpha = 0.4f) else Pal.Line).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) Text("‹ ", color = Green, fontFamily = DisplayFont, fontSize = TypeScale.Title,
                 modifier = Modifier.semantics { contentDescription = "back" }.tap { onBack() })
+            leading?.invoke()
             Text(title, style = if (glow) TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Green, blurRadius = 12f)) else TextStyle.Default, color = Green, fontFamily = DisplayFont,
-                fontSize = TypeScale.Body, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                fontSize = if (display) TypeScale.Title else TypeScale.Body, letterSpacing = if (display) 1.2.sp else 0.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).heightIn(min = Ui.Touch).wrapContentHeight(Alignment.CenterVertically))
             trailing?.invoke()
         }
@@ -195,14 +199,16 @@ fun InboxScreen(
                   val rowShape = groupedShape(!prevSame, !nextSame)
                   CompositionLocalProvider(LocalAccent provides ChatPalette.byId(colors[c.threadId])) {
                     val gone = c.threadId in deleting
+                    val flicker = glitchEnabled()
                     var gt by remember(gone) { mutableIntStateOf(0) }
-                    LaunchedEffect(gone) { while (gone) { delay(40); gt++ } }
+                    LaunchedEffect(gone, flicker) { while (gone && flicker) { delay(40); gt++ } }
                     val isSel = selecting && c.threadId in selected
                     val rowLine = Pal.RowLine
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp).background(if (isSel) Pal.SelBg else Color(ChatTint.s1).copy(alpha = Pal.ROW_A), rowShape)
+                    val fixed = fixedDefaultChat()
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp).background(if (isSel) Pal.SelBg else Color(if (fixed) LocalTheme.current.palette.s1 else ChatTint.s1).copy(alpha = Pal.ROW_A), rowShape)
                         .then(if (prevSame) Modifier.drawBehind { drawLine(rowLine, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), 1.dp.toPx()) } else Modifier)
                         .graphicsLayer {
-                            if (gone) { gt; translationX = (Random.nextFloat() - 0.5f) * 60f; alpha = 0.25f + Random.nextFloat() * 0.5f; scaleY = 0.6f + Random.nextFloat() * 0.4f }
+                            if (gone && flicker) { gt; translationX = (Random.nextFloat() - 0.5f) * 60f; alpha = 0.25f + Random.nextFloat() * 0.5f; scaleY = 0.6f + Random.nextFloat() * 0.4f }
                         }.combinedClickable(enabled = !gone,
                             onClick = { if (selecting) selected = BulkSelect.toggle(selected, c.threadId) else onOpen(c) },
                             onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -466,6 +472,7 @@ fun ThreadScreen(
     val botEntries by com.example.emit.bot.BotCommands.entries.collectAsState()
     LaunchedEffect(threadId) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.example.emit.bot.BotCommands.load(ctx) } }
     val kbCtl = LocalKb.current
+    val fixedChat = fixedDefaultChat()
     val header = if (hasMore || loadingOlder) 1 else 0
     // Jump to bottom when the newest message changes (first load / new message), not when older pages prepend.
     LaunchedEffect(threadId, msgs.lastOrNull()?.key, drafts.size) {
@@ -475,12 +482,16 @@ fun ThreadScreen(
     LaunchedEffect(threadId, nearTop, msgs.size) { if (nearTop && hasMore && msgs.isNotEmpty()) onNearTop() }
     // Layering: opaque tint background -> rain -> content with NO background (bubbles/bar are 92% panels).
     // (0.1.36 bug: an 80% tint was drawn ABOVE the rain, leaving ~5% of it visible = none.)
-    Box(Modifier.fillMaxSize().background(Color(ChatTint.bg)).testTag("thread-root")) { CodeRain(alpha = rainAlpha())
+    Box(Modifier.fillMaxSize().background(Color(if (fixedChat) LocalTheme.current.palette.bg else ChatTint.bg)).testTag("thread-root")) { CodeRain(alpha = rainAlpha())
     Column(Modifier.fillMaxSize().testTag("thread-content")) {
         val isGroup = participants.size > 1
         val threadTitle = if (isGroup) (groupLabel?.takeIf { it.isNotBlank() } ?: com.example.emit.data.DisplayName.chat(null, participantNames, participants)) else com.example.emit.data.DisplayName.person(title, participants.firstOrNull().orEmpty())
         Header(if (LocalTheme.current.chrome.uppercaseNames) threadTitle.uppercase() else threadTitle, onBack,
-            extraChip = (if (isGroup) "MMS · ${participants.size}" else "SMS"), trailing = {
+            extraChip = (if (isGroup) "MMS · ${participants.size}" else "SMS"),
+            leading = if (LocalTheme.current.avatar == AvatarStyle.GLYPH) {{
+                GlyphBadge(participants.ifEmpty { listOf(title) }, 28.dp); Spacer(Modifier.width(8.dp))
+            }} else null,
+            trailing = {
             Text("[/]", color = if (searching) Amber else Green, fontFamily = UiFont, fontSize = TypeScale.Body,
                 modifier = Modifier.semantics { contentDescription = "search in chat" }.tap { searching = !searching; if (!searching) { query = ""; cur = -1 } }.padding(horizontal = 8.dp))
         })
@@ -540,13 +551,19 @@ fun ThreadScreen(
                         onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); if (selecting) picked = picked + m.key else actionFor = m },
                     ).padding(top = if (row.first) Ui.BubbleGapBetween else 2.dp).padding(start = if (m.outgoing) Ui.OutgoingIndent else 0.dp), horizontalAlignment = Alignment.Start) {
                     val tint = ChatTint
-                    val mc = Color(if (m.outgoing) LocalTheme.current.palette.sent else tint.incoming)
-                    if (row.first) Text("> " + if (LocalTheme.current.chrome.uppercaseNames) who.uppercase() else who, color = if (m.outgoing) Pal.OutLabel else Color(tint.name), fontFamily = DisplayFont, fontSize = TypeScale.Meta,
+                    val pal = LocalTheme.current.palette
+                    val mc = Color(when {
+                        m.outgoing -> pal.sent
+                        fixedChat -> pal.incoming
+                        else -> tint.incoming
+                    })
+                    val nameColor = if (m.outgoing) Pal.OutLabel else if (fixedChat) Pal.Cyan else Color(tint.name)
+                    if (row.first) Text("> " + if (LocalTheme.current.chrome.uppercaseNames) who.uppercase() else who, color = nameColor, fontFamily = DisplayFont, fontSize = TypeScale.Meta,
                         maxLines = 1, modifier = Modifier.padding(bottom = 3.dp).scrim())
                     val qp = remember(m.body) { com.example.emit.data.MessageMeta.parseQuote(m.body) }
                     val shownBody = qp?.body ?: m.body
                     if (qp != null) {
-                        val qc = if (qp.who == "you" || qp.who == "me") Pal.OutLabel else Color(tint.name)
+                        val qc = if (qp.who == "you" || qp.who == "me") Pal.OutLabel else nameColor
                         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp).padding(end = 24.dp).panel(Pal.S1c, Pal.Line, LocalTheme.current.shape(9.dp))
                             .height(androidx.compose.foundation.layout.IntrinsicSize.Min).semantics(mergeDescendants = true) { contentDescription = "quoting ${qp.who}: ${qp.quote}" }) {
                             Box(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 6.dp).width(3.dp).fillMaxHeight().background(qc, LocalTheme.current.shape(2.dp)))
@@ -558,7 +575,7 @@ fun ThreadScreen(
                     }
                     if (shownBody.isNotBlank() || (qp == null && (m.media.isEmpty() || m.retryLocation != null)) || (qp != null && m.retryLocation != null)) Text(LinkFinder.annotate("", shownBody, Pal.Cyan, if (searching) query else "", hits.getOrNull(cur) == idx, Pal.SearchBg, Pal.SearchFg),
                         color = mc, fontFamily = UiFont, fontSize = TypeScale.Body, lineHeight = 20.sp,
-                        modifier = Modifier.fillMaxWidth().panel((if (m.outgoing) Pal.OutBg else Color(tint.s1)).copy(alpha = Pal.BUBBLE_A), if (m.outgoing) Pal.OutLine else Color(tint.line), Pal.R8)
+                        modifier = Modifier.fillMaxWidth().panel((if (m.outgoing) Pal.OutBg else Color(if (fixedChat) pal.inBg else tint.s1)).copy(alpha = Pal.BUBBLE_A), if (m.outgoing) Pal.OutLine else Color(if (fixedChat) pal.inLine else tint.line), Pal.R8)
                             .padding(horizontal = 10.dp, vertical = 7.dp))
                     if (previewsOn == true) LinkFinder.find(m.body).firstOrNull { it.target.startsWith("https://") }?.let { LinkPreviewLine(it.target) }
                     m.media.forEach { md ->
@@ -843,7 +860,8 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
             }
         }
         // 0.1.44: field gets the full width; compact action row beneath it.
-        Column(Modifier.fillMaxWidth().shadow(12.dp, Pal.R12, ambientColor = Color.Black, spotColor = Color.Black).panel(Pal.S2c.copy(alpha = Pal.BUBBLE_A), Pal.Line2, Pal.R12)
+        Column(Modifier.fillMaxWidth().shadow(12.dp, Pal.R12, ambientColor = Color.Black, spotColor = Color.Black)
+            .panel(Pal.S2c.copy(alpha = Pal.BUBBLE_A), if (LocalTheme.current.titleGlow) Pal.Primary.copy(alpha = 0.33f) else Pal.Line2, Pal.R12)
             .padding(horizontal = 4.dp, vertical = 2.dp)) {
             TerminalField(bodyText, edit, "> ", "type message_", Modifier.fillMaxWidth().testTag("compose_field"), focusRequester = fr, onPasteMedia = onPasteMedia, bare = true,
                 textSize = FieldText.SIZE, maxLinesMulti = FieldText.MAX_LINES, onCursor = { cursor = it })

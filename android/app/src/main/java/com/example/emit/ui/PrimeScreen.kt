@@ -84,10 +84,11 @@ fun PrimeInboxRow(onOpen: () -> Unit) {
     val thinking = com.example.emit.prime.PrimeChat.thinking(msgs)
     val snippet = when { last == null -> "talk to me directly - not SMS"; thinking -> "thinking…"; else -> last.text }
     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)
-        .panel(Pal.PrimeBg, Pal.Line2, Pal.R12)
+        .panel(Pal.PrimeBg, if (LocalTheme.current.titleGlow) Pal.Primary.copy(alpha = 0.33f) else Pal.Line2, Pal.R12)
         .semantics(mergeDescendants = true) { contentDescription = "Prime assistant chat, pinned" + if (unread) ", new reply" else "" }
         .tap { onOpen() }.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).border(1.dp, Green, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        val primeShape = if (LocalTheme.current.corners == CornerStyle.CUT) CutCornerShape(8.dp, 8.dp) else androidx.compose.foundation.shape.CircleShape
+        Box(Modifier.size(38.dp).border(1.dp, Green, primeShape), contentAlignment = Alignment.Center) {
             Text("P>", color = Green, fontFamily = DisplayFont, fontSize = TypeScale.Label, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
