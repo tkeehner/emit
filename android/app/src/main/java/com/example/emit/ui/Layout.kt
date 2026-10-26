@@ -119,6 +119,18 @@ object RainPref {
     fun set(c: android.content.Context, v: Int) { c.getSharedPreferences("ui_prefs", 0).edit().putInt("rain", v).apply(); level.value = v }
 }
 
+/** Active theme id, stored next to the rain level. Unknown ids fall back to Matrix. */
+object ThemePref {
+    val id = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    fun load(c: android.content.Context): String =
+        id.value ?: (c.getSharedPreferences("ui_prefs", 0).getString("theme", MatrixTheme.id) ?: MatrixTheme.id).also { id.value = it }
+    fun set(c: android.content.Context, themeId: String) {
+        val resolved = Themes.all.firstOrNull { it.id == themeId }?.id ?: MatrixTheme.id
+        c.getSharedPreferences("ui_prefs", 0).edit().putString("theme", resolved).apply()
+        id.value = resolved
+    }
+}
+
 /** Glitch and key-glow. Both default on, same prefs file as rain. Off skips the effect; it does not add a redraw loop. */
 object EffectPrefs {
     private const val P = "ui_prefs"
@@ -163,12 +175,15 @@ val LocalCrt = androidx.compose.runtime.staticCompositionLocalOf { false }
 @Composable
 fun CrtHost(boot: Boolean, content: @Composable () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val savedTheme = androidx.compose.runtime.remember { ThemePref.load(ctx) }
     androidx.compose.runtime.LaunchedEffect(Unit) { UiPrefs.load(ctx) }
     val crt by UiPrefs.crt.collectAsState()
+    val themeId by ThemePref.id.collectAsState()
+    val theme = Themes.byId(themeId ?: savedTheme)
     val on = crt == true
     var booting by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(boot) }
     androidx.compose.runtime.LaunchedEffect(booting) { if (booting) { kotlinx.coroutines.delay(650); booting = false } }
-    androidx.compose.runtime.CompositionLocalProvider(LocalCrt provides on) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalCrt provides on, LocalTheme provides theme) {
         Box(Modifier.fillMaxSize()) {
             content()
             val scanOn = on || LocalTheme.current.scanlinesAlways

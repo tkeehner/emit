@@ -1,5 +1,6 @@
 package com.example.emit.ui
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -23,5 +24,16 @@ class ThemeContrastTest {
         assertTrue(p.sent == ChatPalette.SENT_ARGB)
         assertTrue(MatrixTheme.corners == CornerStyle.ROUNDED && MatrixTheme.avatar == AvatarStyle.KATAKANA)
         assertTrue(MatrixTheme.chrome.inbox == "~\$ inbox" && MatrixTheme.chrome.dayPrefix == "")
+        assertTrue(MatrixTheme.chrome.fab == "[+ NEW]")
+    }
+
+    @Test fun themeIdsResolveWithoutARestart() {
+        assertEquals("matrix", Themes.byId(null).id)
+        assertEquals("matrix", Themes.byId("nope").id)
+        assertEquals("neon", Themes.byId("neon").id)
+        assertEquals(listOf("matrix", "neon"), Themes.all.map { it.id })
+        assertTrue(NeonCityTheme.fixedBubbles && NeonCityTheme.scanlinesAlways && NeonCityTheme.ambientGlitch)
+        assertTrue(NeonCityTheme.avatar == AvatarStyle.GLYPH && NeonCityTheme.corners == CornerStyle.CUT)
+        assertTrue(NeonCityTheme.chrome.fab == "+ NEW" && NeonCityTheme.chrome.uppercaseNames)
     }
 }

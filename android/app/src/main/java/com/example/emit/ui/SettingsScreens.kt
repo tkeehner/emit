@@ -65,12 +65,13 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
     Column(Modifier.fillMaxSize().background(Black)) {
         Header(LocalTheme.current.chrome.settings, onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Ui.ScreenPad)) {
+            Section("theme")
+            ThemePicker()
             Section("keyboard")
             Toggle("autocorrect", kb.autocorrect) { kb.toggleAutocorrectTo(!kb.autocorrect) }
             Toggle("auto caps", kb.autocap) { kb.toggleAutocapTo(!kb.autocap) }
             Toggle("word suggestions", kb.showSuggestions) { kb.toggleSuggestionsTo(!kb.showSuggestions) }
-            Section("display")
-            Toggle("CRT scanlines + header glow", crt) { crt = !crt; UiPrefs.setCrt(ctx, crt) }
+            Section("effects")
             val rain by RainPref.level.collectAsState()
             LaunchedEffect(Unit) { RainPref.load(ctx) }
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10).padding(horizontal = 14.dp, vertical = 6.dp),
@@ -88,6 +89,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
             var glitch by remember { mutableStateOf(EffectPrefs.glitchOn(ctx)) }
             var keyGlow by remember { mutableStateOf(EffectPrefs.keyGlowOn(ctx)) }
             Toggle("glitch effects", glitch, "screen-change glitch, avatar flicker") { glitch = !glitch; EffectPrefs.setGlitch(ctx, glitch) }
+            Toggle("scanlines + glow", crt, "CRT lines and title glow") { crt = !crt; UiPrefs.setCrt(ctx, crt) }
             Toggle("key press glow", keyGlow, "neon glow + popup on keys") { keyGlow = !keyGlow; EffectPrefs.setKeyGlow(ctx, keyGlow) }
             Toggle("link previews (fetch title + domain; off = nothing fetched)", prev) { prev = !prev; UiPrefs.setPreviews(ctx, prev) }
             Section("PC link & Prime")
@@ -114,6 +116,66 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
         }
     }
     if (pinDialog) PinDialog(onClose = { pinDialog = false }) { pin -> if (AppLock.setPin(ctx, pin)) { hasPin = true; pinDialog = false } }
+}
+
+/** Live theme choice. The card previews that theme's type, corners, and swatches. */
+@Composable
+private fun ThemePicker() {
+    val ctx = LocalContext.current
+    val saved = remember { ThemePref.load(ctx) }
+    val current by ThemePref.id.collectAsState()
+    val active = Themes.byId(current ?: saved)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Themes.all.forEach { theme ->
+            val on = theme.id == active.id
+            val shape = theme.shape(12.dp)
+            Column(Modifier.fillMaxWidth()
+                .border(if (on) 2.dp else 1.dp, if (on) Pal.Primary else Pal.Line2, shape)
+                .background(androidx.compose.ui.graphics.Color(theme.palette.bg), shape)
+                .semantics { contentDescription = theme.name + if (on) ", active" else ", tap to use" }
+                .tap { ThemePref.set(ctx, theme.id) }
+                .padding(12.dp)) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(if (theme.chrome.uppercaseNames) theme.name.uppercase() else theme.name,
+                        color = androidx.compose.ui.graphics.Color(theme.palette.primary), fontFamily = theme.displayFont.family(),
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = TypeScale.Body,
+                        letterSpacing = if (theme.displayFont == FontId.OXANIUM) androidx.compose.ui.unit.TextUnit(1.2f, androidx.compose.ui.unit.TextUnitType.Sp) else androidx.compose.ui.unit.TextUnit.Unspecified,
+                        modifier = Modifier.weight(1f))
+                    if (on) Text("ACTIVE", color = androidx.compose.ui.graphics.Color(theme.palette.onPrimary), fontFamily = UiFont, fontSize = TypeScale.Micro,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        modifier = Modifier.background(androidx.compose.ui.graphics.Color(theme.palette.primary), LocalTheme.current.shape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                    else Text("tap to use", color = Pal.Faint, fontFamily = UiFont, fontSize = TypeScale.Meta)
+                }
+                Text(theme.blurb, color = androidx.compose.ui.graphics.Color(theme.palette.dim), fontFamily = UiFont, fontSize = TypeScale.Meta,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
+                Row(Modifier.fillMaxWidth().height(22.dp).border(1.dp, androidx.compose.ui.graphics.Color(theme.palette.line2))) {
+                    theme.swatches.forEach { sw -> Box(Modifier.weight(1f).fillMaxHeight().background(androidx.compose.ui.graphics.Color(sw))) }
+                }
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    "qwe".forEachIndexed { j, ch ->
+                        val pressed = j == 1
+                        val keyShape = theme.shape(4.dp)
+                        val neon = theme.keyStyle == KeyStyle.NEON
+                        Box(Modifier.size(24.dp, 26.dp)
+                            .background(when {
+                                pressed && neon -> androidx.compose.ui.graphics.Color(theme.palette.primary)
+                                pressed -> androidx.compose.ui.graphics.Color(theme.palette.primary).copy(alpha = 0.35f)
+                                neon -> androidx.compose.ui.graphics.Color(theme.palette.s2)
+                                else -> androidx.compose.ui.graphics.Color(theme.palette.bg)
+                            }, keyShape)
+                            .border(1.dp, androidx.compose.ui.graphics.Color(if (pressed) theme.palette.primary else if (neon) theme.palette.line2 else theme.palette.dim), keyShape),
+                            contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            Text(ch.toString(), color = when {
+                                pressed && neon -> androidx.compose.ui.graphics.Color(theme.palette.onPrimary)
+                                pressed && !neon -> androidx.compose.ui.graphics.Color.White
+                                else -> androidx.compose.ui.graphics.Color(theme.palette.primary)
+                            }, fontFamily = theme.keyFont.family(), fontSize = androidx.compose.ui.unit.TextUnit(12f, androidx.compose.ui.unit.TextUnitType.Sp))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
