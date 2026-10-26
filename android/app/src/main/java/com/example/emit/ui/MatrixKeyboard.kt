@@ -230,14 +230,14 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
             Box(Modifier.weight(1f).fillMaxHeight().clickable(enabled = w != null) { w?.let(kb::pick) }
                 .then(if (center && w != null) Modifier.border(1.dp, if (slots.autocorrect != null) Green else FaintGreen, Pal.R8) else Modifier),
                 contentAlignment = Alignment.Center) {
-                Text(w ?: if (e == null && center) (if (kb.dictState is DictState.Failed) "> dict offline" else "> loading dict...") else "", color = if (center) Green else DimGreen, fontFamily = Mono,
+                Text(w ?: if (e == null && center) (if (kb.dictState is DictState.Failed) "> dict offline" else "> loading dict...") else "", color = if (center) Green else DimGreen, fontFamily = UiFont,
                     fontSize = if (center) 16.sp else 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (i < 2) Box(Modifier.width(1.dp).height(22.dp).background(FaintGreen))
         }
         kb.target?.paste?.let { p ->
             Box(Modifier.width(44.dp).fillMaxHeight().tap { p() }, contentAlignment = Alignment.Center) {
-                Text("[⎘]", color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
+                Text("[⎘]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
             }
         }
         Box(Modifier.width(36.dp).fillMaxHeight().tap { onGear() }, contentAlignment = Alignment.Center) {
@@ -250,13 +250,13 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
 private fun SettingsRow(kb: KbController, onClose: () -> Unit) {
     // Raised sheet in the settings.png style: label + sublabel + pill per row, filled OK.
     Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).panel(Pal.S2c, Pal.Line2, Pal.R12).padding(6.dp)) {
-        Text("KEYBOARD", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp))
+        Text("KEYBOARD", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp))
         @Composable fun T(label: String, sub: String, on: Boolean, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)
             .panel(Pal.S1c, Pal.Line, Pal.R10).semantics(mergeDescendants = true) { role = androidx.compose.ui.semantics.Role.Switch; stateDescription = if (on) "on" else "off" }
             .tap { f() }.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1)
-                Text(sub, color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+                Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1)
+                Text(sub, color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             }
             Spacer(Modifier.width(10.dp)); Pill(on)
         }
@@ -264,7 +264,7 @@ private fun SettingsRow(kb: KbController, onClose: () -> Unit) {
         T("auto caps", "capitalize sentence starts", kb.autocap) { kb.toggleAutocapTo(!kb.autocap) }
         T("suggestions", "show the word strip", kb.showSuggestions) { kb.toggleSuggestionsTo(!kb.showSuggestions) }
         Box(Modifier.fillMaxWidth().padding(top = 6.dp).heightIn(min = Ui.Touch).background(Pal.Primary, Pal.R8).tap { onClose() }, contentAlignment = Alignment.Center) {
-            Text("[ OK ]", color = Color(0xFF001A08), fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = TypeScale.Label) }
+            Text("[ OK ]", color = Pal.OnPrimary, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = TypeScale.Label) }
     }
 }
 
@@ -387,12 +387,12 @@ private fun RowScope.KeyFace(k: KeySpec, down: Boolean, h: androidx.compose.ui.u
             .background(if (down) green.copy(alpha = 0.35f) else if (k.highlight) green.copy(alpha = 0.12f) else Black),
         contentAlignment = Alignment.Center,
     ) {
-        Text(k.label, color = if (down) Color.White else green, fontFamily = Mono, fontSize = if (k.label.length > 2) 15.sp else 22.sp)
+        Text(k.label, color = if (down) Pal.KeyDown else green, fontFamily = KeyFont, fontSize = if (k.label.length > 2) 15.sp else 22.sp)
         if (down && k.preview) {
             val lift = with(androidx.compose.ui.platform.LocalDensity.current) { (h + 8.dp).roundToPx() }
             Popup(alignment = Alignment.Center, offset = IntOffset(0, -lift), properties = PopupProperties(focusable = false, clippingEnabled = false)) {
                 Box(Modifier.size(width = 52.dp, height = 62.dp).background(Black).border(2.dp, green), contentAlignment = Alignment.Center) {
-                    Text(k.label, color = green, fontFamily = Mono, fontSize = 32.sp)
+                    Text(k.label, color = green, fontFamily = KeyFont, fontSize = 32.sp)
                 }
             }
         }

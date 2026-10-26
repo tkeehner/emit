@@ -83,11 +83,12 @@ private fun stamp(t: Long): String =
 @Composable
 fun Header(title: String, onBack: (() -> Unit)? = null, chips: Boolean = true, extraChip: String? = null, trailing: (@Composable () -> Unit)? = null) {
     val crt = LocalCrt.current
+    val glow = crt || LocalTheme.current.titleGlow
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp).padding(top = 4.dp, bottom = 6.dp)) {
         Row(Modifier.fillMaxWidth().panel().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) Text("‹ ", color = Green, fontFamily = Mono, fontSize = TypeScale.Title,
+            if (onBack != null) Text("‹ ", color = Green, fontFamily = DisplayFont, fontSize = TypeScale.Title,
                 modifier = Modifier.semantics { contentDescription = "back" }.tap { onBack() })
-            Text(title, style = if (crt) TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Green, blurRadius = 12f)) else TextStyle.Default, color = Green, fontFamily = Mono,
+            Text(title, style = if (glow) TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Green, blurRadius = 12f)) else TextStyle.Default, color = Green, fontFamily = DisplayFont,
                 fontSize = TypeScale.Body, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).heightIn(min = Ui.Touch).wrapContentHeight(Alignment.CenterVertically))
             trailing?.invoke()
@@ -160,7 +161,7 @@ fun InboxScreen(
                 val upd by com.example.emit.link.AppUpdater.pending.collectAsState()
                 var showUpd by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { com.example.emit.link.AppUpdater.load(ctx) }
-                Header("~$ inbox", chips = false, trailing = {
+                Header(LocalTheme.current.chrome.inbox, chips = false, trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         PcButton(PcStatus.of(linkOn, pcs.size), onOpenLink)
                         UpdateButton(upd != null) { showUpd = true }
@@ -170,10 +171,10 @@ fun InboxScreen(
                 })
                 if (showUpd) UpdateDialog(onClose = { showUpd = false })
             }
-            if (draftsCount > 0) Text("[$draftsCount PRIME DRAFT(S) AWAITING APPROVAL]", color = Amber, fontFamily = Mono,
+            if (draftsCount > 0) Text("[$draftsCount PRIME DRAFT(S) AWAITING APPROVAL]", color = Amber, fontFamily = UiFont,
                 fontSize = TypeScale.Meta, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp).fillMaxWidth()
-                    .panel(Color(0xFF120E06), Color(0xFF4A3A1C)).padding(horizontal = 12.dp, vertical = 10.dp))
-            if (archivedView) Text("< inbox   // archived chats (hidden, not deleted)", color = Amber, fontFamily = Mono, fontSize = TypeScale.Label,
+                    .panel(Pal.WarnBg, Pal.WarnLine).padding(horizontal = 12.dp, vertical = 10.dp))
+            if (archivedView) Text("< inbox   // archived chats (hidden, not deleted)", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Label,
                 modifier = Modifier.fillMaxWidth().tap { archivedView = false }.padding(horizontal = Ui.ScreenPad))
             if (shown.isEmpty()) { if (archivedView) EmptyState("> nothing archived_", "long-press a chat and pick [ archive ]")
                 else EmptyState("> no messages found_", "tap [+ NEW] to start a conversation, or make Emit the default app") }
@@ -181,25 +182,25 @@ fun InboxScreen(
                 // Prime is pinned above everything and is not a thread: hidden while multi-selecting, so it can't be bulk-deleted.
                 if (!archivedView && !selecting) item(key = "prime-chat") { PrimeInboxRow(onOpenPrime) }
                 if (!archivedView && archivedCount > 0 && !selecting) item(key = "archived-link") {
-                    Text("[ archived ($archivedCount) ]", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label,
+                    Text("[ archived ($archivedCount) ]", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label,
                         modifier = Modifier.fillMaxWidth().tap { archivedView = true }.padding(horizontal = Ui.ScreenPad))
                 }
                 itemsIndexed(shown, key = { _, it -> it.threadId }) { idx, c ->
                   val pinnedRow = c.threadId in flags.pinned
                   val prevSame = shown.getOrNull(idx - 1)?.let { (it.threadId in flags.pinned) == pinnedRow } == true
                   val nextSame = shown.getOrNull(idx + 1)?.let { (it.threadId in flags.pinned) == pinnedRow } == true
-                  if (!prevSame && !archivedView && flags.pinned.isNotEmpty()) Text(if (pinnedRow) "PINNED" else "ALL", color = FaintGreen, fontFamily = Mono,
+                  if (!prevSame && !archivedView && flags.pinned.isNotEmpty()) Text(if (pinnedRow) "PINNED" else "ALL", color = FaintGreen, fontFamily = UiFont,
                       fontSize = TypeScale.Micro, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp),
-                      modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 4.dp).background(Color.Black.copy(alpha = Pal.SURFACE_A), Pal.R8).padding(horizontal = 6.dp, vertical = 2.dp))
-                  val rowShape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = if (prevSame) 0.dp else 12.dp, topEnd = if (prevSame) 0.dp else 12.dp,
-                      bottomStart = if (nextSame) 0.dp else 12.dp, bottomEnd = if (nextSame) 0.dp else 12.dp)
+                      modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 4.dp).background(Pal.Bg.copy(alpha = Pal.SURFACE_A), Pal.R8).padding(horizontal = 6.dp, vertical = 2.dp))
+                  val rowShape = groupedShape(!prevSame, !nextSame)
                   CompositionLocalProvider(LocalAccent provides ChatPalette.byId(colors[c.threadId])) {
                     val gone = c.threadId in deleting
                     var gt by remember(gone) { mutableIntStateOf(0) }
                     LaunchedEffect(gone) { while (gone) { delay(40); gt++ } }
                     val isSel = selecting && c.threadId in selected
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp).background(if (isSel) Color(0xFF0F3A1E) else Color(ChatTint.s1).copy(alpha = Pal.ROW_A), rowShape)
-                        .then(if (prevSame) Modifier.drawBehind { drawLine(Color(0xFF141E17), androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), 1.dp.toPx()) } else Modifier)
+                    val rowLine = Pal.RowLine
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp).background(if (isSel) Pal.SelBg else Color(ChatTint.s1).copy(alpha = Pal.ROW_A), rowShape)
+                        .then(if (prevSame) Modifier.drawBehind { drawLine(rowLine, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), 1.dp.toPx()) } else Modifier)
                         .graphicsLayer {
                             if (gone) { gt; translationX = (Random.nextFloat() - 0.5f) * 60f; alpha = 0.25f + Random.nextFloat() * 0.5f; scaleY = 0.6f + Random.nextFloat() * 0.4f }
                         }.combinedClickable(enabled = !gone,
@@ -208,27 +209,27 @@ fun InboxScreen(
                                 if (selecting) selected = BulkSelect.toggle(selected, c.threadId) else picking = c },
                         ).padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        if (selecting) Box(Modifier.semantics { role = Role.Checkbox; stateDescription = if (isSel) "selected" else "not selected" }.padding(end = 10.dp).size(20.dp).background(if (isSel) Pal.Primary else Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                            .border(1.dp, if (isSel) Pal.Primary else Pal.Line2, androidx.compose.foundation.shape.RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                            if (isSel) Text("✓", color = Color(0xFF001A08), fontSize = TypeScale.Meta) }
+                        if (selecting) Box(Modifier.semantics { role = Role.Checkbox; stateDescription = if (isSel) "selected" else "not selected" }.padding(end = 10.dp).size(20.dp).background(if (isSel) Pal.Primary else Color.Transparent, LocalTheme.current.shape(6.dp))
+                            .border(1.dp, if (isSel) Pal.Primary else Pal.Line2, LocalTheme.current.shape(6.dp)), contentAlignment = Alignment.Center) {
+                            if (isSel) Text("✓", color = Pal.OnPrimary, fontSize = TypeScale.Meta) }
                         
                         GlyphIcon(c.glyphKey, size = 38, group = c.isGroup)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row {
                                 val badge = com.example.emit.data.ChatPrefs.badges(c.threadId, flags)
-                                if (badge.isNotEmpty()) Text("$badge ", color = Amber, fontFamily = Mono, fontSize = TypeScale.Body, maxLines = 1,
+                                if (badge.isNotEmpty()) Text("$badge ", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Body, maxLines = 1,
                                     modifier = Modifier.semantics { contentDescription = listOfNotNull(if (c.threadId in flags.pinned) "pinned" else null, if (c.threadId in flags.muted) "muted" else null).joinToString() })
-                                Text(c.displayName, color = if (c.unread) Green else Pal.Body, fontFamily = Mono,
+                                Text(if (LocalTheme.current.chrome.uppercaseNames) c.displayName.uppercase() else c.displayName, color = if (c.unread) Green else Pal.Body, fontFamily = DisplayFont,
                                     fontWeight = if (c.unread) androidx.compose.ui.text.font.FontWeight.Medium else null,
                                     fontSize = TypeScale.Body, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Text(c.snippet, color = if (c.unread) Color(0xFF9CCBA9) else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            Text(c.snippet, color = if (c.unread) Pal.Unread else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = 3.dp))
                         }
                         Spacer(Modifier.width(8.dp))
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(stamp(c.date), color = if (c.unread) Pal.Cyan else FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1)
+                            Text(stamp(c.date), color = if (c.unread) Pal.Cyan else FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1)
                             if (c.unread) Box(Modifier.padding(top = 6.dp).size(8.dp).background(Pal.Cyan, androidx.compose.foundation.shape.CircleShape)
                                 .semantics { contentDescription = "unread" })
                         }
@@ -256,8 +257,8 @@ fun InboxScreen(
         }
         if (notice != null) Column(Modifier.align(Alignment.TopCenter).padding(top = 64.dp).fillMaxWidth().padding(horizontal = 12.dp)
             .panel(Pal.S2c, Amber.copy(alpha = 0.6f), Pal.R12).padding(12.dp)) {
-            Text(notice, color = Amber, fontFamily = Mono, fontSize = TypeScale.Label)
-            if (onRequestRole != null) Text("[ make default ]", color = Black, fontFamily = Mono,
+            Text(notice, color = Amber, fontFamily = UiFont, fontSize = TypeScale.Label)
+            if (onRequestRole != null) Text("[ make default ]", color = Black, fontFamily = UiFont,
                 modifier = Modifier.padding(top = 8.dp).background(Amber, Pal.R8).tap { onRequestRole() }.padding(8.dp))
         }
     }
@@ -270,8 +271,8 @@ fun SelectionHeader(count: Int, onCancel: () -> Unit, actions: @Composable RowSc
     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp).padding(top = 4.dp, bottom = 6.dp).panel(Pal.S1c, Pal.OutLine, Pal.R10).padding(horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(Ui.Touch).semantics { contentDescription = "cancel selection" }.tap { onCancel() }, contentAlignment = Alignment.Center) {
-            Text("×", color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Title) }
-        Text("$count selected", color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Body, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+            Text("×", color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Title) }
+        Text("$count selected", color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Body, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
             maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite })
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically, content = actions)
     }
@@ -282,7 +283,7 @@ fun SelAction(label: String, desc: String, enabled: Boolean = true, on: Boolean 
     val c = when { !enabled -> FaintGreen; danger -> DangerRed; on -> Pal.Primary; else -> Green }
     Box(Modifier.heightIn(min = Ui.Touch).widthIn(min = 40.dp).semantics { contentDescription = desc; role = Role.Button }.tap(enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center) {
-        Text(label, color = c, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1, softWrap = false,
+        Text(label, color = c, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1, softWrap = false,
             modifier = Modifier.height(34.dp).panel(if (on) Pal.OutBg else Pal.S2c, when { danger && enabled -> DangerRed.copy(alpha = 0.6f); on -> Pal.Primary.copy(alpha = 0.5f); else -> Pal.Line2 }, Pal.R8)
                 .wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 9.dp))
     }
@@ -301,7 +302,7 @@ fun ColorSheet(name: String, current: String?, onDismiss: () -> Unit, onDelete: 
                onSelectMultiple: (() -> Unit)? = null, subtitle: String? = null, flags: List<SheetFlag> = emptyList(), onPick: (String?) -> Unit) {
     OverlayOpen()
     androidx.activity.compose.BackHandler { onDismiss() }
-    Box(Modifier.fillMaxSize().background(Color(0xCC000000)).clickable(
+    Box(Modifier.fillMaxSize().background(Pal.Scrim).clickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { onDismiss() }) {
         var drag by remember { mutableStateOf(0f) }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().heightIn(max = 640.dp).graphicsLayer { translationY = drag.coerceAtLeast(0f) }
@@ -313,8 +314,8 @@ fun ColorSheet(name: String, current: String?, onDismiss: () -> Unit, onDelete: 
                     onDragEnd = { if (drag > 120f) onDismiss(); drag = 0f }, onDragCancel = { drag = 0f }) { _, dy: Float -> drag += dy } },
                 contentAlignment = Alignment.Center) { Box(Modifier.size(36.dp, 4.dp).background(Pal.Line2, androidx.compose.foundation.shape.CircleShape)) }
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
-                Text("chat options", color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Title, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                Text(name + (subtitle?.takeIf { it.isNotBlank() && it != name }?.let { " · $it" } ?: ""), color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta,
+                Text("chat options", color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Title, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                Text(name + (subtitle?.takeIf { it.isNotBlank() && it != name }?.let { " · $it" } ?: ""), color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (flags.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     flags.forEach { f ->
@@ -323,11 +324,11 @@ fun ColorSheet(name: String, current: String?, onDismiss: () -> Unit, onDelete: 
                             .semantics(mergeDescendants = true) { role = Role.Switch; stateDescription = if (f.on) "on" else "off" }
                             .tap { f.toggle() }.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(f.icon, color = if (f.on) Pal.Primary else DimGreen, fontSize = TypeScale.Title)
-                            Text(f.label, color = if (f.on) Pal.Primary else DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, modifier = Modifier.padding(top = 2.dp))
+                            Text(f.label, color = if (f.on) Pal.Primary else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, modifier = Modifier.padding(top = 2.dp))
                         }
                     }
                 }
-                Text("COLOR", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp))
+                Text("COLOR", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp))
                 val sel = ChatPalette.byId(current).id
                 androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ChatPalette.ALL.forEach { n ->
@@ -336,41 +337,41 @@ fun ColorSheet(name: String, current: String?, onDismiss: () -> Unit, onDelete: 
                             .tap { onPick(n.id) }.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(Modifier.size(34.dp).border(if (on) 2.dp else 1.dp, if (on) Pal.Body else Pal.Line2, androidx.compose.foundation.shape.CircleShape).padding(4.dp)
                                 .background(col, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
-                                if (on) Text("✓", color = Color(0xFF001A08), fontSize = TypeScale.Label, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-                            Text(n.label.lowercase() + if (n.id == ChatPalette.DEFAULT.id) "*" else "", color = if (on) Pal.Body else DimGreen, fontFamily = Mono,
+                                if (on) Text("✓", color = Pal.OnPrimary, fontSize = TypeScale.Label, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                            Text(n.label.lowercase() + if (n.id == ChatPalette.DEFAULT.id) "*" else "", color = if (on) Pal.Body else DimGreen, fontFamily = UiFont,
                                 fontSize = TypeScale.Micro, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                         }
                     }
                 }
-                Text("* default", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 4.dp, top = 2.dp))
-                Text("ACTIONS", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp, start = 4.dp))
+                Text("* default", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 4.dp, top = 2.dp))
+                Text("ACTIONS", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp, start = 4.dp))
                 @Composable fun MenuRow(label: String, c: Color = Pal.Body, line: Color = Pal.Line, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)
                     .panel(Pal.S1c, line, Pal.R10).tap { f() }.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, color = c, fontFamily = Mono, fontSize = TypeScale.Body, modifier = Modifier.weight(1f)); Text("›", color = c.copy(alpha = 0.7f), fontFamily = Mono) }
+                    Text(label, color = c, fontFamily = UiFont, fontSize = TypeScale.Body, modifier = Modifier.weight(1f)); Text("›", color = c.copy(alpha = 0.7f), fontFamily = UiFont) }
                 if (onSelectMultiple != null) MenuRow("select multiple") { onSelectMultiple() }
                 if (onRename != null) MenuRow("rename group") { onRename() }
                 MenuRow("reset color") { onPick(null) }
                 if (onDelete != null) {
-                    Text("DANGER ZONE", color = DangerRed.copy(alpha = 0.85f), fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp, start = 4.dp))
+                    Text("DANGER ZONE", color = DangerRed.copy(alpha = 0.85f), fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp, start = 4.dp))
                     MenuRow("delete conversation", DangerRed, DangerRed.copy(alpha = 0.6f)) { onDelete() }
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 8.dp).tap { onDismiss() }, contentAlignment = Alignment.Center) {
-                    Text("cancel", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label) }
+                    Text("cancel", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label) }
             }
         }
     }
 }
 
-val DangerRed = Color(0xFFFF3131)
+val DangerRed: Color @Composable get() = Color(LocalTheme.current.palette.danger)
 
 /** '> name group' input; empty = remove custom name. Stored locally only. */
 @Composable
 fun RenameDialog(current: String, onCancel: () -> Unit, onSave: (String?) -> Unit) {
     OverlayOpen()
     var name by remember { mutableStateOf(current) }
-    Box(Modifier.fillMaxSize().background(Color(0xDD000000)), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.fillMaxSize().background(Pal.ScrimStrong), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.padding(20.dp).padding(top = 60.dp).fillMaxWidth().panel(Pal.S2c, Pal.Line2, Pal.R12).padding(16.dp)) {
-            Text("> name group", color = Green, fontFamily = Mono, fontSize = TypeScale.Body)
+            Text("> name group", color = Green, fontFamily = UiFont, fontSize = TypeScale.Body)
             Spacer(Modifier.height(8.dp))
             TerminalField(name, { name = it.take(40) }, "$ ", "group name", Modifier.fillMaxWidth(), singleLine = true)
             ButtonRow(Btn("[ cancel ]", DimGreen) { onCancel() }, Btn("[ save ]", Green, filled = true) { onSave(name.ifBlank { null }) },
@@ -382,11 +383,11 @@ fun RenameDialog(current: String, onCancel: () -> Unit, onSave: (String?) -> Uni
 @Composable
 fun DeleteConfirm(c: Conversation, onCancel: () -> Unit, onConfirm: () -> Unit) {
     OverlayOpen()
-    Box(Modifier.fillMaxSize().background(Color(0xDD000000)).clickable(
+    Box(Modifier.fillMaxSize().background(Pal.ScrimStrong).clickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { onCancel() },
         contentAlignment = Alignment.Center) {
         Column(Modifier.padding(20.dp).fillMaxWidth().panel(Pal.S2c, DangerRed.copy(alpha = 0.6f), Pal.R12).clickable(enabled = false) {}.padding(16.dp)) {
-            Text(deletePrompt(c.displayName, c.messageCount), color = DangerRed, fontFamily = Mono, fontSize = TypeScale.Body)
+            Text(deletePrompt(c.displayName, c.messageCount), color = DangerRed, fontFamily = UiFont, fontSize = TypeScale.Body)
             ButtonRow(Btn("[ cancel ]", Green) { onCancel() }, Btn("[ delete ]", DangerRed, filled = true) { onConfirm() },
                 modifier = Modifier.padding(top = 16.dp))
         }
@@ -396,11 +397,11 @@ fun DeleteConfirm(c: Conversation, onCancel: () -> Unit, onConfirm: () -> Unit) 
 @Composable
 fun BulkDeleteConfirm(n: Int, onCancel: () -> Unit, onConfirm: () -> Unit) {
     OverlayOpen()
-    Box(Modifier.fillMaxSize().background(Color(0xDD000000)).clickable(
+    Box(Modifier.fillMaxSize().background(Pal.ScrimStrong).clickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { onCancel() },
         contentAlignment = Alignment.Center) {
         Column(Modifier.padding(20.dp).fillMaxWidth().panel(Pal.S2c, DangerRed.copy(alpha = 0.6f), Pal.R12).clickable(enabled = false) {}.padding(16.dp)) {
-            Text(BulkSelect.confirmPrompt(n), color = DangerRed, fontFamily = Mono, fontSize = TypeScale.Body)
+            Text(BulkSelect.confirmPrompt(n), color = DangerRed, fontFamily = UiFont, fontSize = TypeScale.Body)
             ButtonRow(Btn("[ cancel ]", Green) { onCancel() }, Btn("[ delete ]", DangerRed, filled = true) { onConfirm() },
                 modifier = Modifier.padding(top = 16.dp))
         }
@@ -412,9 +413,14 @@ fun deletePrompt(name: String, count: Int): String =
     "> rm -rf thread // $name?\nthis permanently deletes all $count message${if (count == 1) "" else "s"} on this phone"
 
 /** Dashed amber outline used ONLY for Prime drafts, so they never look like an amber-colored chat. */
-fun Modifier.dashedDraftBorder(): Modifier = drawBehind {
-    drawRect(Color(0x26FFB000))
-    drawRect(Amber, style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 8f))))
+@Composable
+fun Modifier.dashedDraftBorder(): Modifier {
+    val fill = Pal.Mark
+    val line = Amber
+    return drawBehind {
+        drawRect(fill)
+        drawRect(line, style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 8f))))
+    }
 }
 
 @Composable
@@ -472,16 +478,17 @@ fun ThreadScreen(
     Box(Modifier.fillMaxSize().background(Color(ChatTint.bg)).testTag("thread-root")) { CodeRain(alpha = rainAlpha())
     Column(Modifier.fillMaxSize().testTag("thread-content")) {
         val isGroup = participants.size > 1
-        Header(if (isGroup) (groupLabel?.takeIf { it.isNotBlank() } ?: com.example.emit.data.DisplayName.chat(null, participantNames, participants)) else com.example.emit.data.DisplayName.person(title, participants.firstOrNull().orEmpty()), onBack,
+        val threadTitle = if (isGroup) (groupLabel?.takeIf { it.isNotBlank() } ?: com.example.emit.data.DisplayName.chat(null, participantNames, participants)) else com.example.emit.data.DisplayName.person(title, participants.firstOrNull().orEmpty())
+        Header(if (LocalTheme.current.chrome.uppercaseNames) threadTitle.uppercase() else threadTitle, onBack,
             extraChip = (if (isGroup) "MMS · ${participants.size}" else "SMS"), trailing = {
-            Text("[/]", color = if (searching) Amber else Green, fontFamily = Mono, fontSize = TypeScale.Body,
+            Text("[/]", color = if (searching) Amber else Green, fontFamily = UiFont, fontSize = TypeScale.Body,
                 modifier = Modifier.semantics { contentDescription = "search in chat" }.tap { searching = !searching; if (!searching) { query = ""; cur = -1 } }.padding(horizontal = 8.dp))
         })
         if (searching) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             TerminalField(query, { query = it; cur = -1 }, "/ ", "search this chat", Modifier.weight(1f), singleLine = true)
-            Text(if (hits.isEmpty()) (if (query.isBlank()) "" else " 0/0") else " ${cur + 1}/${hits.size}", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1)
-            Text("[↑]", color = Green, fontFamily = Mono, modifier = Modifier.semantics { contentDescription = "previous match" }.padding(3.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { cur = ThreadSearch.step(cur, hits.size, false) }.padding(horizontal = 6.dp))
-            Text("[↓]", color = Green, fontFamily = Mono, modifier = Modifier.semantics { contentDescription = "next match" }.padding(3.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { cur = ThreadSearch.step(cur, hits.size, true) }.padding(horizontal = 6.dp))
+            Text(if (hits.isEmpty()) (if (query.isBlank()) "" else " 0/0") else " ${cur + 1}/${hits.size}", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1)
+            Text("[↑]", color = Green, fontFamily = UiFont, modifier = Modifier.semantics { contentDescription = "previous match" }.padding(3.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { cur = ThreadSearch.step(cur, hits.size, false) }.padding(horizontal = 6.dp))
+            Text("[↓]", color = Green, fontFamily = UiFont, modifier = Modifier.semantics { contentDescription = "next match" }.padding(3.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { cur = ThreadSearch.step(cur, hits.size, true) }.padding(horizontal = 6.dp))
         }
         fun whoOf(m: Message) = if (m.outgoing) "you" else if (isGroup) com.example.emit.data.ThreadMapping.senderName(m.address, participants, participantNames) else com.example.emit.data.DisplayName.person(title, participants.firstOrNull().orEmpty())
         val chatRows = remember(msgs, participants) { ChatLogic.rows(msgs.map { ChatLogic.Entry(if (it.outgoing) "\u0000me" else it.address, it.date) }, System.currentTimeMillis()) }
@@ -492,14 +499,14 @@ fun ThreadScreen(
         }
         if (messages == null) {
             Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp)) {
-                Text("  loading messages...", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+                Text("  loading messages...", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
                 SkeletonLines()
             }
         } else LazyColumn(Modifier.weight(1f).padding(horizontal = 12.dp)
             .pointerInput(Unit) { detectTapGestures { kbCtl.hide() } }, state = listState) {
             if (header == 1) item(key = "older") {
                 Text(if (loadingOlder) "> fetching older packets..." else "> scroll up for older_", color = DimGreen,
-                    fontFamily = Mono, fontSize = TypeScale.Meta, modifier = Modifier.padding(vertical = 8.dp))
+                    fontFamily = UiFont, fontSize = TypeScale.Meta, modifier = Modifier.padding(vertical = 8.dp))
             }
             if (msgs.isEmpty() && drafts.isEmpty()) item(key = "empty") {
                 EmptyState("> no messages_", "type below and press SEND to start this thread")
@@ -533,24 +540,24 @@ fun ThreadScreen(
                         onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); if (selecting) picked = picked + m.key else actionFor = m },
                     ).padding(top = if (row.first) Ui.BubbleGapBetween else 2.dp).padding(start = if (m.outgoing) Ui.OutgoingIndent else 0.dp), horizontalAlignment = Alignment.Start) {
                     val tint = ChatTint
-                    val mc = Color(if (m.outgoing) ChatPalette.SENT_ARGB else tint.incoming)
-                    if (row.first) Text("> $who", color = if (m.outgoing) Pal.OutLabel else Color(tint.name), fontFamily = Mono, fontSize = TypeScale.Meta,
+                    val mc = Color(if (m.outgoing) LocalTheme.current.palette.sent else tint.incoming)
+                    if (row.first) Text("> " + if (LocalTheme.current.chrome.uppercaseNames) who.uppercase() else who, color = if (m.outgoing) Pal.OutLabel else Color(tint.name), fontFamily = DisplayFont, fontSize = TypeScale.Meta,
                         maxLines = 1, modifier = Modifier.padding(bottom = 3.dp).scrim())
                     val qp = remember(m.body) { com.example.emit.data.MessageMeta.parseQuote(m.body) }
                     val shownBody = qp?.body ?: m.body
                     if (qp != null) {
                         val qc = if (qp.who == "you" || qp.who == "me") Pal.OutLabel else Color(tint.name)
-                        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp).padding(end = 24.dp).panel(Pal.S1c, Pal.Line, androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
+                        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp).padding(end = 24.dp).panel(Pal.S1c, Pal.Line, LocalTheme.current.shape(9.dp))
                             .height(androidx.compose.foundation.layout.IntrinsicSize.Min).semantics(mergeDescendants = true) { contentDescription = "quoting ${qp.who}: ${qp.quote}" }) {
-                            Box(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 6.dp).width(3.dp).fillMaxHeight().background(qc, androidx.compose.foundation.shape.RoundedCornerShape(2.dp)))
+                            Box(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 6.dp).width(3.dp).fillMaxHeight().background(qc, LocalTheme.current.shape(2.dp)))
                             Column(Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
-                                Text(">> ${qp.who}:", color = qc, fontFamily = Mono, fontSize = TypeScale.Micro, maxLines = 1)
-                                Text(qp.quote, color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(">> ${qp.who}:", color = qc, fontFamily = UiFont, fontSize = TypeScale.Micro, maxLines = 1)
+                                Text(qp.quote, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
-                    if (shownBody.isNotBlank() || (qp == null && (m.media.isEmpty() || m.retryLocation != null)) || (qp != null && m.retryLocation != null)) Text(LinkFinder.annotate("", shownBody, Pal.Cyan, if (searching) query else "", hits.getOrNull(cur) == idx),
-                        color = mc, fontFamily = Mono, fontSize = TypeScale.Body, lineHeight = 20.sp,
+                    if (shownBody.isNotBlank() || (qp == null && (m.media.isEmpty() || m.retryLocation != null)) || (qp != null && m.retryLocation != null)) Text(LinkFinder.annotate("", shownBody, Pal.Cyan, if (searching) query else "", hits.getOrNull(cur) == idx, Pal.SearchBg, Pal.SearchFg),
+                        color = mc, fontFamily = UiFont, fontSize = TypeScale.Body, lineHeight = 20.sp,
                         modifier = Modifier.fillMaxWidth().panel((if (m.outgoing) Pal.OutBg else Color(tint.s1)).copy(alpha = Pal.BUBBLE_A), if (m.outgoing) Pal.OutLine else Color(tint.line), Pal.R8)
                             .padding(horizontal = 10.dp, vertical = 7.dp))
                     if (previewsOn == true) LinkFinder.find(m.body).firstOrNull { it.target.startsWith("https://") }?.let { LinkPreviewLine(it.target) }
@@ -564,22 +571,22 @@ fun ThreadScreen(
                     if (m.outgoing) botEntries.let { be ->
                         com.example.emit.bot.BotLogic.matchFor(be, threadId, m.body, m.date, true, { it.threadId }, { it.body }, { it.created })
                     }?.let { e -> com.example.emit.bot.BotLogic.tag(e.status)?.let { tg -> Row(Modifier.align(Alignment.End).scrim(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(tg, color = if (e.status == "queued") Amber else DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
-                        if (e.status == "queued") Text(" [ cancel ]", color = Amber, fontFamily = Mono, fontSize = TypeScale.Meta,
+                        Text(tg, color = if (e.status == "queued") Amber else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
+                        if (e.status == "queued") Text(" [ cancel ]", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Meta,
                             modifier = Modifier.tap { uiScope.launch(kotlinx.coroutines.Dispatchers.IO) { com.example.emit.bot.BotCommands.cancel(appCtx, e.id) } }.padding(4.dp))
                     } } }
                     val failed = ChatLogic.canRetry(m.delivery, m.isMms)
                     if (row.last || m.delivery == ChatLogic.Delivery.FAILED || m.delivery == ChatLogic.Delivery.PENDING)
                         Row(Modifier.align(Alignment.End).padding(top = 2.dp).scrim(), verticalAlignment = Alignment.CenterVertically) {
                             if (m.delivery != ChatLogic.Delivery.NONE) Text(m.delivery.label + if (failed) " tap to retry" else "",
-                                color = if (m.delivery == ChatLogic.Delivery.FAILED) DangerRed else FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1,
+                                color = if (m.delivery == ChatLogic.Delivery.FAILED) DangerRed else FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1,
                                 modifier = Modifier.semantics { contentDescription = m.delivery.spoken }.then(if (failed) Modifier.tap {
                                     hv.confirm(); uiScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                         val res = com.example.emit.sms.SmsSender.retryFailed(appCtx, m.id)
                                         if (res is com.example.emit.sms.SmsSender.Result.Refused) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                             android.widget.Toast.makeText(appCtx, "retry: " + res.reason, android.widget.Toast.LENGTH_SHORT).show() }
                                     } } else Modifier))
-                            if (row.last) Text((if (m.delivery != ChatLogic.Delivery.NONE) " " else "") + stamp(m.date), color = FaintGreen, fontFamily = Mono,
+                            if (row.last) Text((if (m.delivery != ChatLogic.Delivery.NONE) " " else "") + stamp(m.date), color = FaintGreen, fontFamily = UiFont,
                                 fontSize = TypeScale.Meta, maxLines = 1)
                         }
                 }
@@ -588,26 +595,26 @@ fun ThreadScreen(
             items(drafts, key = { "draft:" + it.id }) { d ->
                 val hv = androidx.compose.ui.platform.LocalView.current
                 Column(Modifier.fillMaxWidth().padding(vertical = Ui.BubbleGap).dashedDraftBorder().padding(Ui.CardPad)) {
-                    Text("[PRIME DRAFT] // NOT SENT - NEEDS YOUR APPROVAL", color = Black, fontFamily = Mono, fontSize = TypeScale.Meta,
+                    Text("[PRIME DRAFT] // NOT SENT - NEEDS YOUR APPROVAL", color = Black, fontFamily = UiFont, fontSize = TypeScale.Meta,
                         modifier = Modifier.background(Amber, Pal.R8).padding(horizontal = 4.dp))
-                    Text("> ${d.body}", color = Amber, fontFamily = Mono, fontSize = TypeScale.Body)
+                    Text("> ${d.body}", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Body)
                     if (!canApprove) Row(Modifier.padding(top = 8.dp)) {
-                        Text("[approve disabled in groups]", color = Amber, fontFamily = Mono, fontSize = TypeScale.Meta, modifier = Modifier.weight(1f))
-                        Text("[ REJECT ]", color = Amber, fontFamily = Mono, modifier = Modifier.panel(Pal.S2c, Amber.copy(alpha = 0.6f), Pal.R8).tap { hv.confirm(); onReject(d) }.padding(8.dp))
+                        Text("[approve disabled in groups]", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Meta, modifier = Modifier.weight(1f))
+                        Text("[ REJECT ]", color = Amber, fontFamily = UiFont, modifier = Modifier.panel(Pal.S2c, Amber.copy(alpha = 0.6f), Pal.R8).tap { hv.confirm(); onReject(d) }.padding(8.dp))
                     }
                     if (canApprove) ButtonRow(Btn("[ APPROVE ]", Amber, filled = true, confirm = true) { onApprove(d) }, Btn("[ REJECT ]", Amber, confirm = true) { onReject(d) },
                         modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
-        if (notice != null) Text(notice, color = Amber, fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).scrim())
+        if (notice != null) Text(notice, color = Amber, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).scrim())
         // the user's typing area is always terminal green regardless of chat color.
         val mine = scheduled.filter { it.threadId == threadId }
         if (mine.isNotEmpty()) Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
             mine.forEach { sc -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("⏱ ${java.text.SimpleDateFormat("EEE h:mm a", java.util.Locale.US).format(Date(sc.at))}  ${sc.body.take(40)}", color = Amber, fontFamily = Mono,
+                Text("⏱ ${java.text.SimpleDateFormat("EEE h:mm a", java.util.Locale.US).format(Date(sc.at))}  ${sc.body.take(40)}", color = Amber, fontFamily = UiFont,
                     fontSize = TypeScale.Meta, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text("[ cancel ]", color = Amber, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1, softWrap = false,
+                Text("[ cancel ]", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1, softWrap = false,
                     modifier = Modifier.tap { uiScope.launch(kotlinx.coroutines.Dispatchers.IO) { com.example.emit.sms.Scheduler.cancel(draftCtx, sc.id) } }.padding(start = 8.dp))
             } }
         }
@@ -747,16 +754,16 @@ fun TerminalField(
                 if (pasteMenu) androidx.compose.ui.window.Popup(alignment = Alignment.TopStart, offset = androidx.compose.ui.unit.IntOffset(0, -140),
                     onDismissRequest = { pasteMenu = false }, properties = androidx.compose.ui.window.PopupProperties(focusable = true)) {
                     Row(Modifier.panel(Pal.S2c, Pal.Line2, Pal.R12)) {
-                        Text("[ paste ]", color = Green, fontFamily = Mono, modifier = Modifier.tap { pasteMenu = false; doPaste() }.padding(12.dp))
-                        if (tfv.text.isNotEmpty()) Text("[ copy all ]", color = Green, fontFamily = Mono,
+                        Text("[ paste ]", color = Green, fontFamily = UiFont, modifier = Modifier.tap { pasteMenu = false; doPaste() }.padding(12.dp))
+                        if (tfv.text.isNotEmpty()) Text("[ copy all ]", color = Green, fontFamily = UiFont,
                             modifier = Modifier.tap { pasteMenu = false; Clip.copy(ctx, tfv.text) }.padding(12.dp))
                     }
                 }
-                Text(prompt, color = Green, fontFamily = Mono, fontSize = textSize)
+                Text(prompt, color = Green, fontFamily = UiFont, fontSize = textSize)
                 Box(Modifier.weight(1f)) {
                     if (value.isEmpty()) Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
                         if (!active) BlinkCursor()
-                        Text(placeholder.trimEnd('_'), color = DimGreen, fontFamily = Mono, fontSize = textSize, maxLines = 1,
+                        Text(placeholder.trimEnd('_'), color = DimGreen, fontFamily = UiFont, fontSize = textSize, maxLines = 1,
                             modifier = Modifier.padding(start = if (active) 10.dp else 0.dp))
                     }
                     val green = Green
@@ -794,7 +801,7 @@ fun TerminalField(
                         Box(capMod.clipToBounds().verticalScroll(scroll)) { Box(cursorBox) { inner() } }
                     }
                 }
-                if (active && kb.useSystem) Text(" [mx]", color = Green, fontFamily = Mono, fontSize = TypeScale.Label,
+                if (active && kb.useSystem) Text(" [mx]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label,
                     modifier = Modifier.tap { kb.useSystem = false })
             }
         },
@@ -816,23 +823,23 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
     var cursor by remember { mutableIntStateOf(Int.MAX_VALUE) }  // MAX = end (never tapped)
     val voice = rememberVoiceInput { spoken -> curEdit(VoiceText.insertAt(curBody, cursor, spoken).first) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
-        if (voice.listening) Text("● listening… " + voice.partial.ifEmpty { "speak now" }, color = Green, fontFamily = Mono, fontSize = TypeScale.Meta,
+        if (voice.listening) Text("● listening… " + voice.partial.ifEmpty { "speak now" }, color = Green, fontFamily = UiFont, fontSize = TypeScale.Meta,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite })
         if (quoted) {
             val q = quoteLine.removePrefix(">> ")
             val who = q.substringBefore(": ", ""); val what = if (who.isEmpty()) q else q.substringAfter(": ")
             val accent = Color(ChatTint.name)
-            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).panel(Pal.S1c, Pal.Line, androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).panel(Pal.S1c, Pal.Line, LocalTheme.current.shape(9.dp))
                 .height(androidx.compose.foundation.layout.IntrinsicSize.Min)
                 .semantics(mergeDescendants = true) { contentDescription = "replying to $who: $what" }, verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 6.dp).width(3.dp).fillMaxHeight().background(accent, androidx.compose.foundation.shape.RoundedCornerShape(2.dp)))
+                Box(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 6.dp).width(3.dp).fillMaxHeight().background(accent, LocalTheme.current.shape(2.dp)))
                 Text(androidx.compose.ui.text.buildAnnotatedString {
                     pushStyle(androidx.compose.ui.text.SpanStyle(color = accent)); append(">> " + (if (who.isEmpty()) "" else "$who: ")); pop()
                     pushStyle(androidx.compose.ui.text.SpanStyle(color = DimGreen)); append(what); pop()
-                }, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                }, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(start = 8.dp, top = 6.dp, bottom = 6.dp))
                 Box(Modifier.size(Ui.Touch, 36.dp).semantics { contentDescription = "cancel reply" }.tap { onChange(bodyText) }, contentAlignment = Alignment.Center) {
-                    Text("[x]", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta) }
+                    Text("[x]", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta) }
             }
         }
         // 0.1.44: field gets the full width; compact action row beneath it.
@@ -842,23 +849,23 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
                 textSize = FieldText.SIZE, maxLinesMulti = FieldText.MAX_LINES, onCursor = { cursor = it })
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(1.dp).background(Pal.Line))
             Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                val shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                val shape = Pal.R8
                 @Composable fun Icon(label: String, desc: String, on: Boolean = false, bg: Color = Color.Transparent, act: () -> Unit) =
                     Box(Modifier.size(44.dp).semantics { contentDescription = desc }.tap { act() }, contentAlignment = Alignment.Center) {
                         Box(Modifier.size(34.dp).background(bg, shape).border(1.dp, if (on) Green else Pal.Line2, shape), contentAlignment = Alignment.Center) {
-                            Text(label, color = if (on) Green else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label) } }
+                            Text(label, color = if (on) Green else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label) } }
                 if (onAttach != null) Icon("+", "attach") { onAttach() }
                 val on = voice.listening
                 Icon(if (on) "■" else "🎙", if (on) "stop dictation" else "dictate message, voice to text", on,
                     if (on) Green.copy(alpha = 0.18f + 0.4f * voice.level) else Color.Transparent) { hv.confirm(); voice.tap() }
                 if (onSchedule != null) Icon("⏱", "schedule send") { onSchedule() }
                 Spacer(Modifier.weight(1f))
-                if (text.isNotEmpty()) Text(ChatLogic.segments(text).label, color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro,
+                if (text.isNotEmpty()) Text(ChatLogic.segments(text).label, color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro,
                     maxLines = 1, modifier = Modifier.padding(end = 8.dp))
                 Box(Modifier.heightIn(min = 40.dp).background(if (ready) Pal.Primary else Pal.S1c, Pal.R8).border(1.dp, if (ready) Pal.Primary else Pal.Line2, Pal.R8)
                     .clickable(enabled = ready) { hv.confirm(); onSend() }.padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center) {
-                    Text("SEND", color = if (!ready) FaintGreen else Color(0xFF001A08), fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    Text("SEND", color = if (!ready) FaintGreen else Pal.OnPrimary, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         fontSize = TypeScale.Label, modifier = Modifier.semantics { contentDescription = if (ready) "send" else "send, nothing to send" })
                 }
             }
@@ -870,7 +877,7 @@ fun ComposeBar(text: String, onChange: (String) -> Unit, hasAttachments: Boolean
 object FieldText {
     val SIZE = 13.sp
     const val MAX_LINES = 5
-    fun style(color: Color, size: androidx.compose.ui.unit.TextUnit) = TextStyle(color = color, fontFamily = Mono, fontSize = size,
+    @Composable fun style(color: Color, size: androidx.compose.ui.unit.TextUnit) = TextStyle(color = color, fontFamily = UiFont, fontSize = size,
         lineBreak = androidx.compose.ui.text.style.LineBreak(
             strategy = androidx.compose.ui.text.style.LineBreak.Strategy.Simple,
             strictness = androidx.compose.ui.text.style.LineBreak.Strictness.Normal,
@@ -902,7 +909,7 @@ fun NewMessageScreen(
         Header(if (recipients.size > 1) "new_group(${recipients.size})" else "new_message", onBack)
         if (recipients.isNotEmpty()) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             recipients.forEach { r ->
-                Text("[${r.first}] x", color = Black, fontFamily = Mono, fontSize = TypeScale.Label,
+                Text("[${r.first}] x", color = Black, fontFamily = UiFont, fontSize = TypeScale.Label,
                     modifier = Modifier.padding(4.dp).background(Green, Pal.R8).tap { recipients = recipients - r }.padding(horizontal = 8.dp, vertical = 4.dp))
             }
         }
@@ -914,18 +921,18 @@ fun NewMessageScreen(
             }
             Spacer(Modifier.width(8.dp))
             Box(Modifier.heightIn(min = 48.dp).border(1.dp, Green, Pal.R8).tap { add(to, to) }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                Text("[+]", color = Green, fontFamily = Mono)
+                Text("[+]", color = Green, fontFamily = UiFont)
             }
             Spacer(Modifier.width(8.dp))
             Box(Modifier.heightIn(min = 48.dp).border(1.dp, DimGreen, Pal.R8).tap { phonePad = !phonePad }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                Text(if (phonePad) "abc" else "#", color = DimGreen, fontFamily = Mono)
+                Text(if (phonePad) "abc" else "#", color = DimGreen, fontFamily = UiFont)
             }
         }
         suggestions.forEach { (n, num) ->
-            Text("> $n  $num", color = Green, fontFamily = Mono, fontSize = TypeScale.Label,
+            Text("> $n  $num", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label,
                 modifier = Modifier.fillMaxWidth().tap { add(n, num) }.padding(horizontal = 16.dp, vertical = 8.dp))
         }
-        if (recipients.size > 1) Text("> sends as ONE group MMS to all ${recipients.size}", color = DimGreen, fontFamily = Mono,
+        if (recipients.size > 1) Text("> sends as ONE group MMS to all ${recipients.size}", color = DimGreen, fontFamily = UiFont,
             fontSize = TypeScale.Meta, modifier = Modifier.padding(horizontal = 12.dp))
         val kbCtl = LocalKb.current
         Spacer(Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) { detectTapGestures { kbCtl.hide() } })
@@ -965,21 +972,21 @@ fun MessageSheet(
     onReply: () -> Unit, onForward: () -> Unit, onDelete: () -> Unit, onInfo: () -> Unit,
     onView: (com.example.emit.data.MediaRef) -> Unit, onSave: (com.example.emit.data.MediaRef) -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(Color(0xCC000000)).clickable(
+    Box(Modifier.fillMaxSize().background(Pal.Scrim).clickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { onDismiss() }) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp).shadow(16.dp, Pal.R12).panel(Pal.S2c, Pal.Line2, Pal.R12)
            .clickable(enabled = false) {}.padding(16.dp)) {
-            Text("> msg from $who", color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
-            if (m.body.isNotBlank()) Text("  " + m.body, color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text("> msg from $who", color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
+            if (m.body.isNotBlank()) Text("  " + m.body, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(8.dp))
             // [ copy | reply | forward | delete | info ]
             Row(Modifier.fillMaxWidth().border(1.dp, FaintGreen, Pal.R8)) {
-                @Composable fun A(label: String, c: Color, f: () -> Unit) = Text(label, color = c, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1, softWrap = false,
+                @Composable fun A(label: String, c: Color, f: () -> Unit) = Text(label, color = c, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1, softWrap = false,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.weight(1f).padding(horizontal = 3.dp).panel(Pal.S1c, if (c == DangerRed) DangerRed.copy(alpha = 0.5f) else Pal.Line2, Pal.R8).tap { f() })
                 A("copy", Green, onCopy); A("reply", Green, onReply); A("fwd", Green, onForward); A("del", DangerRed, onDelete); A("info", Green, onInfo)
             }
             Spacer(Modifier.height(4.dp))
-            @Composable fun Opt(label: String, f: () -> Unit) = Text(label, color = Green, fontFamily = Mono, fontSize = TypeScale.Body,
+            @Composable fun Opt(label: String, f: () -> Unit) = Text(label, color = Green, fontFamily = UiFont, fontSize = TypeScale.Body,
                 modifier = Modifier.fillMaxWidth().tap { f() }.padding(vertical = 12.dp))
             if (m.body.isNotBlank()) { Opt("[ copy text ]", onCopy); Opt("[ select text... ]", onSelectText) }
             Opt("[ select multiple ]", onMulti)
@@ -991,7 +998,7 @@ fun MessageSheet(
                     Opt("[ save $kind$n to gallery ]") { onSave(md) }
                 }
             }
-            Text("[ cancel ]", color = DimGreen, fontFamily = Mono, modifier = Modifier.padding(top = 8.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { onDismiss() }.padding(8.dp))
+            Text("[ cancel ]", color = DimGreen, fontFamily = UiFont, modifier = Modifier.padding(top = 8.dp).panel(Pal.S2c, Pal.Line2, Pal.R8).tap { onDismiss() }.padding(8.dp))
         }
     }
 }
@@ -1001,12 +1008,12 @@ fun MessageSheet(
 fun SelectTextDialog(title: String, body: String, onClose: () -> Unit) {
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         DialogEnter { Column(Modifier.padding(horizontal = 20.dp).dialogBox(Green)) {
-            Text(title, color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
-            Text("  long-press + drag to highlight, then Copy", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            Text(title, color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
+            Text("  long-press + drag to highlight, then Copy", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Spacer(Modifier.height(12.dp))
             Box(Modifier.heightIn(max = 420.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                 androidx.compose.foundation.text.selection.SelectionContainer {
-                    Text(body, color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
+                    Text(body, color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
                 }
             }
             val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -1022,7 +1029,7 @@ fun UpdateButton(waiting: Boolean, onClick: () -> Unit) {
     Row(Modifier.panel(Pal.S2c, if (waiting) Amber.copy(alpha = 0.6f) else Pal.Line2, Pal.R8).tap { onClick() }
         .padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (waiting) { Box(Modifier.size(8.dp).background(Amber, androidx.compose.foundation.shape.CircleShape)); Spacer(Modifier.width(8.dp)) }
-        Text("⇩ UPD", color = if (waiting) Amber else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label)
+        Text("⇩ UPD", color = if (waiting) Amber else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
     }
 }
 
@@ -1035,21 +1042,21 @@ fun UpdateDialog(onClose: () -> Unit) {
     var msg by remember { mutableStateOf<String?>(null) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         DialogEnter { Column(Modifier.padding(horizontal = 20.dp).dialogBox(Green)) {
-            Text("> APP UPDATE", color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
+            Text("> APP UPDATE", color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
             Spacer(Modifier.height(8.dp))
             val cur = com.example.emit.BuildConfig.VERSION_NAME
             val u = p
-            if (u == null) Text("installed: $cur\nno update waiting.\nSend one from the PC: msms update push <apk>", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label)
+            if (u == null) Text("installed: $cur\nno update waiting.\nSend one from the PC: msms update push <apk>", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
             else {
                 Text("installed: $cur\navailable: ${u.versionName} (code ${u.versionCode})\nsize: ${"%.1f".format(u.size / 1048576.0)} MB\nsha256: ${u.sha256.take(16)}…\nsigner: matches installed app ✓",
-                    color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
+                    color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
                 Spacer(Modifier.height(12.dp))
                 ButtonRow(Btn("[ install ]", Green, filled = true, confirm = true) { msg = com.example.emit.link.AppUpdater.install(ctx) },
                     Btn("[ decline ]", DangerRed) { com.example.emit.link.AppUpdater.clear(ctx); onClose() }, fontSp = 15)
             }
-            (st ?: msg)?.let { Spacer(Modifier.height(8.dp)); Text(it, color = Amber, fontFamily = Mono, fontSize = TypeScale.Label) }
+            (st ?: msg)?.let { Spacer(Modifier.height(8.dp)); Text(it, color = Amber, fontFamily = UiFont, fontSize = TypeScale.Label) }
             Spacer(Modifier.height(8.dp))
-            Text("[ close ]", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.tap { onClose() }.padding(4.dp))
+            Text("[ close ]", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.tap { onClose() }.padding(4.dp))
         }
     } }
 }
@@ -1064,7 +1071,7 @@ fun PcButton(status: PcStatus, onClick: () -> Unit) {
         .tap { onClick() }.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).background(dot, androidx.compose.foundation.shape.CircleShape))
         Spacer(Modifier.width(8.dp))
-        Text("⇄ PC", color = if (status == PcStatus.OFF) DimGreen else Green, fontFamily = Mono, fontSize = TypeScale.Label)
+        Text("⇄ PC", color = if (status == PcStatus.OFF) DimGreen else Green, fontFamily = UiFont, fontSize = TypeScale.Label)
     }
 }
 
@@ -1073,7 +1080,7 @@ fun DateDivider(label: String) {
     Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp).semantics(mergeDescendants = true) { contentDescription = label.lowercase() },
         verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).height(1.dp).background(Pal.Line))
-        Text(" $label ", modifier = Modifier.scrim(), color = FaintGreen, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1)
+        Text(" ${LocalTheme.current.chrome.dayPrefix}$label ", modifier = Modifier.scrim(), color = FaintGreen, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontFamily = DisplayFont, fontSize = TypeScale.Meta, maxLines = 1)
         Box(Modifier.weight(1f).height(1.dp).background(Pal.Line))
     }
 }
@@ -1083,10 +1090,10 @@ fun DateDivider(label: String) {
 fun EmptyState(title: String, next: String, color: Color = DimGreen) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 16.dp).panel(Pal.S1c, Pal.Line, Pal.R12).padding(20.dp)
         .semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(44.dp).panel(Pal.S2c, Pal.Line2, Pal.R12), contentAlignment = Alignment.Center) { Text("∅", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Title) }
+        Box(Modifier.size(44.dp).panel(Pal.S2c, Pal.Line2, Pal.R12), contentAlignment = Alignment.Center) { Text("∅", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Title) }
         Spacer(Modifier.height(12.dp))
-        Text(title.removePrefix("> ").removeSuffix("_"), color = if (color == DimGreen) Pal.Body else color, fontFamily = Mono, fontSize = TypeScale.Body)
-        Text(next, color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+        Text(title.removePrefix("> ").removeSuffix("_"), color = if (color == DimGreen) Pal.Body else color, fontFamily = UiFont, fontSize = TypeScale.Body)
+        Text(next, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -1099,7 +1106,7 @@ fun SkeletonLines(n: Int = 6) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp).semantics { contentDescription = "loading messages" }) {
         repeat(n) { i ->
             val out = i % 3 == 1; val len = listOf(18, 26, 12, 30, 16, 22)[i % 6]
-            Text("░".repeat(len), color = FaintGreen.copy(alpha = if ((i + phase) % 3 == 0) 0.9f else 0.5f), fontFamily = Mono, fontSize = TypeScale.Body,
+            Text("░".repeat(len), color = FaintGreen.copy(alpha = if ((i + phase) % 3 == 0) 0.9f else 0.5f), fontFamily = UiFont, fontSize = TypeScale.Body,
                 maxLines = 1, softWrap = false, modifier = Modifier.padding(start = if (out) Ui.OutgoingIndent else 0.dp, top = 8.dp))
         }
     }
@@ -1117,13 +1124,13 @@ fun MessageInfoSheet(m: Message, onClose: () -> Unit) {
     }
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         DialogEnter { Column(Modifier.padding(horizontal = 20.dp).dialogBox(Green)) {
-            Text("> message info", color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
+            Text("> message info", color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
             Spacer(Modifier.height(8.dp))
             val r = rows
             if (r == null) SkeletonLines(3)
             else r.forEach { (k, v) -> Row(Modifier.padding(vertical = 2.dp)) {
-                Text(k.padEnd(10), color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1, softWrap = false)
-                Text(v, color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
+                Text(k.padEnd(10), color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1, softWrap = false)
+                Text(v, color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
             } }
             ButtonRow(Btn("[ close ]", DimGreen) { onClose() }, modifier = Modifier.padding(top = 12.dp))
         } }
@@ -1132,11 +1139,11 @@ fun MessageInfoSheet(m: Message, onClose: () -> Unit) {
 
 @Composable
 fun DeleteMessageConfirm(onCancel: () -> Unit, onConfirm: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0xDD000000)).clickable(
+    Box(Modifier.fillMaxSize().background(Pal.ScrimStrong).clickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { onCancel() },
         contentAlignment = Alignment.Center) {
         Column(Modifier.padding(20.dp).fillMaxWidth().panel(Pal.S2c, DangerRed.copy(alpha = 0.6f), Pal.R12).clickable(enabled = false) {}.padding(16.dp)) {
-            Text("> delete this message? it is removed from the phone and can't be undone.", color = DangerRed, fontFamily = Mono, fontSize = TypeScale.Body)
+            Text("> delete this message? it is removed from the phone and can't be undone.", color = DangerRed, fontFamily = UiFont, fontSize = TypeScale.Body)
             ButtonRow(Btn("[ cancel ]", Green) { onCancel() }, Btn("[ delete ]", DangerRed, filled = true, confirm = true) { onConfirm() },
                 modifier = Modifier.padding(top = 16.dp))
         }
@@ -1146,7 +1153,7 @@ fun DeleteMessageConfirm(onCancel: () -> Unit, onConfirm: () -> Unit) {
 @Composable
 fun LinkPreviewLine(url: String) {
     val p by produceState<LinkPreview.Preview?>(null, url) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { LinkPreview.fetch(url) } }
-    p?.let { Text("  ⧉ ${it.title} — ${it.domain}", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis,
+    p?.let { Text("  ⧉ ${it.title} — ${it.domain}", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 2, overflow = TextOverflow.Ellipsis,
         modifier = Modifier.padding(top = 2.dp)) }
 }
 
@@ -1158,8 +1165,8 @@ fun ScheduleDialog(onClose: () -> Unit, onPick: (Long) -> Unit) {
         add(java.util.Calendar.DAY_OF_YEAR, daysAhead); set(java.util.Calendar.HOUR_OF_DAY, h); set(java.util.Calendar.MINUTE, m); set(java.util.Calendar.SECOND, 0) }.timeInMillis
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         DialogEnter { Column(Modifier.padding(horizontal = 20.dp).dialogBox(Green)) {
-            Text("> schedule send", color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
-            Text("  sends this one message once, at the time you pick", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            Text("> schedule send", color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
+            Text("  sends this one message once, at the time you pick", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Spacer(Modifier.height(8.dp))
             val now = System.currentTimeMillis()
             ButtonRow(Btn("[ +1 hour ]", Green) { onPick(now + 3_600_000) }, Btn("[ tonight 9pm ]", Green) { onPick(at(if (at(0, 21, 0) > now + 60_000) 0 else 1, 21, 0)) })

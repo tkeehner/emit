@@ -28,20 +28,21 @@ import com.example.emit.link.AppLock
 private fun Toggle(label: String, on: Boolean, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10)
     .semantics(mergeDescendants = true) { role = Role.Switch; stateDescription = if (on) "on" else "off" }.tap { f() }
     .padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-    Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = Mono, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
+    Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
     Spacer(Modifier.width(10.dp)); Pill(on)
 }
 
 @Composable
 private fun Section(title: String) {
-    Spacer(Modifier.height(16.dp)); Text(title.uppercase(), color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro,
+    val slash = LocalTheme.current.chrome.sectionSlash
+    Spacer(Modifier.height(16.dp)); Text((if (slash) "// " else "") + title.uppercase(), color = if (slash) Pal.Cyan else FaintGreen, fontFamily = DisplayFont, fontSize = TypeScale.Micro,
         letterSpacing = androidx.compose.ui.unit.TextUnit(1.2f, androidx.compose.ui.unit.TextUnitType.Sp), modifier = Modifier.padding(start = 6.dp)); Spacer(Modifier.height(6.dp))
 }
 
 @Composable
 private fun NavRow(label: String, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10).tap { f() }
     .padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-    Text(label, color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Body, modifier = Modifier.weight(1f)); Text("›", color = DimGreen, fontFamily = Mono)
+    Text(label, color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Body, modifier = Modifier.weight(1f)); Text("›", color = DimGreen, fontFamily = UiFont)
 }
 
 /** One place for every toggle. */
@@ -58,7 +59,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
     var hasPin by remember { mutableStateOf(AppLock.hasPin(ctx)) }
     var pinDialog by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(Black)) {
-        Header("root@emit:~$ settings", onBack)
+        Header(LocalTheme.current.chrome.settings, onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Ui.ScreenPad)) {
             Section("keyboard")
             Toggle("autocorrect", kb.autocorrect) { kb.toggleAutocorrectTo(!kb.autocorrect) }
@@ -71,8 +72,8 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).panel(Pal.S1c, Pal.Line, Pal.R10).padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("background rain", color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Body)
-                    Text("behind inbox and chats", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+                    Text(LocalTheme.current.chrome.rainLabel, color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Body)
+                    Text("behind inbox and chats", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
                 }
                 listOf("off", "subtle", "more").forEachIndexed { i, l ->
                     val on = (rain ?: 1) == i
@@ -87,18 +88,18 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
             NavRow("[ link PC / AWS relay / pairing ]", onOpenLink)
             Section("security")
             Toggle("app lock (fingerprint/face, or your phone PIN; off by default)", lockOn) { lockOn = !lockOn; AppLock.setEnabled(ctx, lockOn); if (lockOn) AppLockState.unlockedAt = System.currentTimeMillis() }
-            Text("  never wipes data; your phone's own PIN/pattern always unlocks it", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            Text("  never wipes data; your phone's own PIN/pattern always unlocks it", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Row {
                 NavRow(if (hasPin) "[ change app PIN ]" else "[ set app PIN (optional) ]") { pinDialog = true }
             }
-            if (hasPin) Text("[ remove app PIN ]", color = DangerRed, fontFamily = Mono, fontSize = TypeScale.Label,
+            if (hasPin) Text("[ remove app PIN ]", color = DangerRed, fontFamily = UiFont, fontSize = TypeScale.Label,
                 modifier = Modifier.padding(vertical = 3.dp).fillMaxWidth().panel(Pal.S1c, DangerRed.copy(alpha = 0.5f), Pal.R10).tap { AppLock.clearPin(ctx); hasPin = false }.padding(horizontal = 14.dp))
             Section("notifications")
             NavRow("[ system notification settings ]") {
                 ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                     .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-            Text("  mute single chats: long-press a chat > [x] mute", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            Text("  mute single chats: long-press a chat > [x] mute", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Section("about")
             NavRow("[ about / changelog / licenses / crash log ]", onOpenAbout)
             Spacer(Modifier.height(32.dp))
@@ -112,7 +113,7 @@ fun PinDialog(title: String = "> set app PIN (4-12 digits)", onClose: () -> Unit
     var pin by remember { mutableStateOf("") }
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         DialogEnter { Column(Modifier.padding(horizontal = 20.dp).dialogBox(Green)) {
-            Text(title, color = Green, fontFamily = Mono, fontSize = TypeScale.Body)
+            Text(title, color = Green, fontFamily = UiFont, fontSize = TypeScale.Body)
             Spacer(Modifier.height(8.dp))
             PinField(pin) { pin = it }
             ButtonRow(Btn("[ cancel ]", DimGreen) { onClose() }, Btn("[ ok ]", Green, filled = true) { if (AppLock.validPin(pin)) onPin(pin) },
@@ -124,7 +125,7 @@ fun PinDialog(title: String = "> set app PIN (4-12 digits)", onClose: () -> Unit
 @Composable
 fun PinField(pin: String, onChange: (String) -> Unit) {
     androidx.compose.foundation.text.BasicTextField(pin, { v -> onChange(v.filter { it.isDigit() }.take(12)) },
-        textStyle = androidx.compose.ui.text.TextStyle(color = Green, fontFamily = Mono, fontSize = TypeScale.Title),
+        textStyle = androidx.compose.ui.text.TextStyle(color = Green, fontFamily = UiFont, fontSize = TypeScale.Title),
         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation('*'),
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(Green), singleLine = true,
@@ -141,16 +142,16 @@ fun LockScreen(onPrompt: () -> Unit, onUnlocked: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { onPrompt() }
     Column(Modifier.fillMaxSize().background(Black).padding(Ui.ScreenPad), verticalArrangement = Arrangement.Center) {
-        Text(">_ emit locked", color = Green, fontFamily = Mono, fontSize = TypeScale.Title)
+        Text(">_ emit locked", color = Green, fontFamily = UiFont, fontSize = TypeScale.Title)
         Spacer(Modifier.height(16.dp))
         ButtonRow(Btn("[ unlock ]", Green, filled = true) { onPrompt() })
         if (AppLock.hasPin(ctx)) {
-            Spacer(Modifier.height(16.dp)); Text("> or app PIN", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label)
+            Spacer(Modifier.height(16.dp)); Text("> or app PIN", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
             PinField(pin) { pin = it; err = null }
             ButtonRow(Btn("[ enter ]", Green) { if (AppLock.checkPin(ctx, pin)) onUnlocked() else { err = "wrong PIN"; pin = "" } }, modifier = Modifier.padding(top = 8.dp))
         }
-        err?.let { Text(it, color = DangerRed, fontFamily = Mono, fontSize = TypeScale.Label) }
-        Text("  your phone's PIN/pattern also works from [ unlock ]", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, modifier = Modifier.padding(top = 12.dp))
+        err?.let { Text(it, color = DangerRed, fontFamily = UiFont, fontSize = TypeScale.Label) }
+        Text("  your phone's PIN/pattern also works from [ unlock ]", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, modifier = Modifier.padding(top = 12.dp))
     }
 }
 
@@ -189,21 +190,21 @@ fun AboutScreen(onBack: () -> Unit) {
     var showOfl by remember { mutableStateOf(false) }
     val ofl = remember { runCatching { ctx.assets.open("licenses/JetBrainsMono-OFL.txt").bufferedReader().readText() }.getOrDefault("(license file missing)") }
     Column(Modifier.fillMaxSize().background(Black)) {
-        Header("root@emit:~$ about", onBack)
+        Header(LocalTheme.current.chrome.about, onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Ui.ScreenPad)) {
             Spacer(Modifier.height(12.dp))
             Text(">_ Emit v${com.example.emit.BuildConfig.VERSION_NAME} (${com.example.emit.BuildConfig.VERSION_CODE}) ${com.example.emit.BuildConfig.BUILD_TYPE}",
-                color = Green, fontFamily = Mono, fontSize = TypeScale.Body)
+                color = Green, fontFamily = UiFont, fontSize = TypeScale.Body)
             Section("changelog")
-            Changelog.entries.forEach { (v, t) -> Text("$v  $t", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta, modifier = Modifier.padding(vertical = 2.dp)) }
+            Changelog.entries.forEach { (v, t) -> Text("$v  $t", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, modifier = Modifier.padding(vertical = 2.dp)) }
             Section("licenses")
-            Text("JetBrains Mono — SIL Open Font License 1.1", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label)
-            Text(if (showOfl) "[ hide license ]" else "[ show license ]", color = Green, fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.tap { showOfl = !showOfl })
-            if (showOfl) Text(ofl, color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            Text("JetBrains Mono — SIL Open Font License 1.1", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label)
+            Text(if (showOfl) "[ hide license ]" else "[ show license ]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.tap { showOfl = !showOfl })
+            if (showOfl) Text(ofl, color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             Section("crash log (on this phone only)")
-            if (crash.isBlank()) Text("  no crashes recorded", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+            if (crash.isBlank()) Text("  no crashes recorded", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             else {
-                Text(crash.takeLast(6000), color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Meta,
+                Text(crash.takeLast(6000), color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Meta,
                     modifier = Modifier.fillMaxWidth().border(1.dp, FaintGreen, Pal.R8).padding(8.dp))
                 ButtonRow(Btn("[ export ]", Green) {
                     val f = java.io.File(ctx.cacheDir, "logs/emit-crash.txt").apply { parentFile?.mkdirs(); writeText(crash) }

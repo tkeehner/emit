@@ -36,11 +36,11 @@ fun LinkScreen(onBack: () -> Unit) {
         if (pairing?.let { it.result == null && !it.awaitingAllow && now > it.until } == true) LinkState.closePairing() } }
     LaunchedEffect(pairing?.result) { pcs = store.pcs() }
     LaunchedEffect(Unit) { if (enabled && !running) LinkService.start(ctx) }
-    @Composable fun T(s: String, c: Color = Green, size: Int = 14, m: Modifier = Modifier) = Text(s, color = c, fontFamily = Mono, fontSize = TypeScale.snap(size), modifier = m, softWrap = !(s.startsWith("[") && s.length < 24), maxLines = if (s.startsWith("[") && s.length < 24) 1 else Int.MAX_VALUE)
-    @Composable fun Btn(s: String, c: Color = Green, f: () -> Unit) = Text(s, color = c, fontFamily = Mono, fontSize = TypeScale.Body,
+    @Composable fun T(s: String, c: Color = Green, size: Int = 14, m: Modifier = Modifier) = Text(s, color = c, fontFamily = UiFont, fontSize = TypeScale.snap(size), modifier = m, softWrap = !(s.startsWith("[") && s.length < 24), maxLines = if (s.startsWith("[") && s.length < 24) 1 else Int.MAX_VALUE)
+    @Composable fun Btn(s: String, c: Color = Green, f: () -> Unit) = Text(s, color = c, fontFamily = UiFont, fontSize = TypeScale.Body,
         modifier = Modifier.padding(vertical = 8.dp).border(1.dp, c, Pal.R8).tap { f() }.padding(horizontal = 12.dp, vertical = 12.dp))
     Column(Modifier.fillMaxSize().background(Black)) {
-    com.example.emit.ui.Header("root@emit:~$ link_pc", onBack)
+    com.example.emit.ui.Header(LocalTheme.current.chrome.link, onBack)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Ui.ScreenPad)) {
         Spacer(Modifier.height(12.dp))
         T("[${if (enabled) "x" else " "}] link enabled (LAN, end-to-end encrypted)", if (enabled) Green else DimGreen, 15, Modifier.tap {
@@ -107,8 +107,8 @@ fun RelaySection(store: LinkStore) {
     var tok by remember { mutableStateOf(store.relayToken) }
     var editing by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
-    val st = androidx.compose.ui.text.TextStyle(color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
-    @Composable fun T(s: String, c: Color = Green, size: Int = 13, m: Modifier = Modifier) = Text(s, color = c, fontFamily = Mono, fontSize = TypeScale.snap(size), modifier = m, softWrap = !(s.startsWith("[") && s.length < 24), maxLines = if (s.startsWith("[") && s.length < 24) 1 else Int.MAX_VALUE)
+    val st = androidx.compose.ui.text.TextStyle(color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
+    @Composable fun T(s: String, c: Color = Green, size: Int = 13, m: Modifier = Modifier) = Text(s, color = c, fontFamily = UiFont, fontSize = TypeScale.snap(size), modifier = m, softWrap = !(s.startsWith("[") && s.length < 24), maxLines = if (s.startsWith("[") && s.length < 24) 1 else Int.MAX_VALUE)
     @Composable fun F(label: String, v: String, secret: Boolean = false, set: (String) -> Unit) {
         T(label, DimGreen, 11)
         androidx.compose.foundation.text.BasicTextField(v, set, textStyle = st, singleLine = true,

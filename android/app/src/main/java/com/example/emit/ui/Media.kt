@@ -64,8 +64,8 @@ fun MediaThumb(uri: Uri, mime: String, size: Int, modifier: Modifier = Modifier)
         if (mime.startsWith("image/")) {
             val b = rememberBitmap(uri, size * 3)
             if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            else Text("…", color = DimGreen, fontFamily = Mono)
-        } else Text("▶ vid", color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
+            else Text("…", color = DimGreen, fontFamily = UiFont)
+        } else Text("▶ vid", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
     }
 }
 
@@ -84,15 +84,15 @@ private fun ViewerChrome(visible: Boolean, label: String, onSave: (suspend () ->
         androidx.compose.animation.AnimatedVisibility(visible, Modifier.align(Alignment.TopCenter),
             enter = if (reduce) androidx.compose.animation.EnterTransition.None else androidx.compose.animation.fadeIn(),
             exit = if (reduce) androidx.compose.animation.ExitTransition.None else androidx.compose.animation.fadeOut()) {
-            Column(Modifier.fillMaxWidth().background(Color(0xB3000000))) {
+            Column(Modifier.fillMaxWidth().background(Pal.MediaScrim)) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().height(barH).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(Ui.Touch).androidSemantics("close").tap { onClose() }, contentAlignment = Alignment.Center) {
-                        Text("‹", color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Title) }
-                    Text(label, color = Pal.Body, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1,
+                        Text("‹", color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Title) }
+                    Text(label, color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 4.dp))
                     if (onSave != null) Box(Modifier.heightIn(min = Ui.Touch).androidSemantics("save to gallery").tap(enabled = !saving) {
                         saving = true; scope.launch { msg = onSave(); saving = false } }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                        Text(if (saving) "saving…" else "save", color = Green, fontFamily = Mono, fontSize = TypeScale.Label,
+                        Text(if (saving) "saving…" else "save", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label,
                             modifier = Modifier.height(36.dp).panel(Pal.S2c, Pal.OutLine, Pal.R8).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 12.dp))
                     }
                 }
@@ -100,7 +100,7 @@ private fun ViewerChrome(visible: Boolean, label: String, onSave: (suspend () ->
             }
         }
         msg?.let { t ->
-            Text(t, color = if (t.startsWith("saved")) Pal.Body else Amber, fontFamily = Mono, fontSize = TypeScale.Label,
+            Text(t, color = if (t.startsWith("saved")) Pal.Body else Amber, fontFamily = UiFont, fontSize = TypeScale.Label,
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(20.dp)
                     .panel(Pal.S2c, if (t.startsWith("saved")) Pal.OutLine else Amber.copy(alpha = 0.6f), Pal.R12)
                     .androidLive().padding(horizontal = 16.dp, vertical = 12.dp))
@@ -129,7 +129,7 @@ fun FullscreenImage(uri: Uri, label: String = "", onSave: (suspend () -> String)
                         onDoubleTap = { if (scale > 1f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.5f }) }
                     .transformable(tf)
                     .graphicsLayer { scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
-                else Text("> decrypting image...", color = Green, fontFamily = Mono)
+                else Text("> decrypting image...", color = Green, fontFamily = UiFont)
             }
         }
     }
@@ -143,7 +143,7 @@ fun AttachmentStrip(items: List<Attachment>, onRemove: (Attachment) -> Unit) {
         items.forEach { a ->
             Box(Modifier.padding(end = 8.dp)) {
                 MediaThumb(a.uri, a.mime, 64)
-                Text("[x]", color = Black, fontFamily = Mono, fontSize = TypeScale.Meta,
+                Text("[x]", color = Black, fontFamily = UiFont, fontSize = TypeScale.Meta,
                     modifier = Modifier.align(Alignment.TopEnd).background(Green, Pal.R8).tap { onRemove(a) }.padding(horizontal = 2.dp))
             }
         }
@@ -175,8 +175,8 @@ fun AttachTray(onPick: (List<Attachment>) -> Unit, onClose: () -> Unit) {
     }
     Column(Modifier.fillMaxWidth().panel(Pal.S2c, Pal.Line2, Pal.R12).padding(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("> attach", color = Green, fontFamily = Mono, modifier = Modifier.weight(1f))
-            Text("[x]", color = DimGreen, fontFamily = Mono, modifier = Modifier.tap { onClose() }.padding(4.dp))
+            Text("> attach", color = Green, fontFamily = UiFont, modifier = Modifier.weight(1f))
+            Text("[x]", color = DimGreen, fontFamily = UiFont, modifier = Modifier.tap { onClose() }.padding(4.dp))
         }
         Row(Modifier.padding(vertical = 8.dp)) {
             TrayButton("[ gallery ]") { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
@@ -186,7 +186,7 @@ fun AttachTray(onPick: (List<Attachment>) -> Unit, onClose: () -> Unit) {
                 val u = FileProvider.getUriForFile(ctx, MmsTransport.AUTHORITY, f); camUri = u; camera.launch(u)
             }
         }
-        if (!granted) Text("> grant photo access for recent images_", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label,
+        if (!granted) Text("> grant photo access for recent images_", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label,
             modifier = Modifier.tap { perm.launch(Manifest.permission.READ_MEDIA_IMAGES) }.padding(vertical = 8.dp))
         else Row(Modifier.horizontalScroll(rememberScrollState())) {
             recent.forEach { u -> MediaThumb(u, "image/jpeg", 72, Modifier.padding(end = 8.dp).tap { onPick(listOf(Attachment(u, "image/jpeg"))) }) }
@@ -196,7 +196,7 @@ fun AttachTray(onPick: (List<Attachment>) -> Unit, onClose: () -> Unit) {
 
 @Composable
 private fun TrayButton(label: String, onClick: () -> Unit) =
-    Text(label, color = Green, fontFamily = Mono, modifier = Modifier.border(1.dp, Green, Pal.R8).tap { onClick() }.padding(12.dp))
+    Text(label, color = Green, fontFamily = UiFont, modifier = Modifier.border(1.dp, Green, Pal.R8).tap { onClick() }.padding(12.dp))
 
 /** Fullscreen video player (in-app VideoView, reads the MMS part directly). */
 @Composable
@@ -214,7 +214,7 @@ fun FullscreenVideo(uri: Uri, label: String = "", onSave: suspend () -> String, 
                         setVideoURI(uri)
                     }
                 }, modifier = Modifier.fillMaxWidth())
-                if (err) Text("> can't play this video_", color = Amber, fontFamily = Mono)
+                if (err) Text("> can't play this video_", color = Amber, fontFamily = UiFont)
             }
         }
     }

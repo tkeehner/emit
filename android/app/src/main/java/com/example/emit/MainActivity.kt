@@ -338,11 +338,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                         NewMessageScreen(s.address, { go(Screen.Inbox) }, prefillBody = s.body, onSend = { a, b -> sendNew(a, b) },
                             search = { q -> withContext(Dispatchers.IO) { repo.searchContacts(q) } }) }
                 }
-                if (screen == Screen.Inbox && com.example.emit.ui.Overlay.open == 0) Text("[+ NEW]", color = Color(0xFF001A08), fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                if (screen == Screen.Inbox && com.example.emit.ui.Overlay.open == 0) Text("[+ NEW]", color = Pal.OnPrimary, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).background(com.example.emit.ui.Pal.Primary, com.example.emit.ui.Pal.R12)
                         .clickable { go(Screen.Compose("")) }.heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 18.dp))
-                if (screen == Screen.Inbox && !isDefault() && permsVersion >= 0) Text("[!] not default SMS app - tap to fix", color = Amber, fontFamily = Mono,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).background(Color(0xFF120E06), com.example.emit.ui.Pal.R10).border(1.dp, Color(0xFF4A3A1C), com.example.emit.ui.Pal.R10).clickable {
+                if (screen == Screen.Inbox && !isDefault() && permsVersion >= 0) Text("[!] not default SMS app - tap to fix", color = Amber, fontFamily = UiFont,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).background(Pal.WarnBg, com.example.emit.ui.Pal.R10).border(1.dp, Pal.WarnLine, com.example.emit.ui.Pal.R10).clickable {
                         roleLauncher.launch(getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_SMS))
                     })
             }

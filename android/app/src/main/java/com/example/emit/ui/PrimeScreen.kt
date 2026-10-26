@@ -84,23 +84,23 @@ fun PrimeInboxRow(onOpen: () -> Unit) {
     val thinking = com.example.emit.prime.PrimeChat.thinking(msgs)
     val snippet = when { last == null -> "talk to me directly - not SMS"; thinking -> "thinking…"; else -> last.text }
     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)
-        .panel(Color(0xFF06140B), Pal.Line2, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+        .panel(Pal.PrimeBg, Pal.Line2, Pal.R12)
         .semantics(mergeDescendants = true) { contentDescription = "Prime assistant chat, pinned" + if (unread) ", new reply" else "" }
         .tap { onOpen() }.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(38.dp).border(1.dp, Green, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
-            Text("P>", color = Green, fontFamily = Mono, fontSize = TypeScale.Label, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+            Text("P>", color = Green, fontFamily = DisplayFont, fontSize = TypeScale.Label, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("📌 ", color = Amber, fontFamily = Mono, fontSize = TypeScale.Body)
-                Text("Prime", color = Green, fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
+                Text("📌 ", color = Amber, fontFamily = UiFont, fontSize = TypeScale.Body)
+                Text("Prime", color = Green, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontSize = TypeScale.Body, modifier = Modifier.weight(1f))
             }
-            Text(snippet, color = if (unread) Color(0xFF9CCBA9) else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1,
+            Text(snippet, color = if (unread) Pal.Unread else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
         }
         Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
-            if (last != null) Text(stampPrime(last.ts), color = if (unread) Pal.Cyan else FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta, maxLines = 1)
+            if (last != null) Text(stampPrime(last.ts), color = if (unread) Pal.Cyan else FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta, maxLines = 1)
             if (unread) Box(Modifier.padding(top = 6.dp).size(8.dp).background(Pal.Cyan, androidx.compose.foundation.shape.CircleShape))
         }
     }
@@ -127,22 +127,22 @@ fun PrimeScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) { while (true) { delay(450); tick++ } }
     val thinking = com.example.emit.prime.PrimeChat.thinking(msgs)
     Column(Modifier.fillMaxSize()) {
-        Header("~$ prime", onBack, extraChip = "NOT SMS")
+        Header(LocalTheme.current.chrome.prime, onBack, extraChip = "NOT SMS")
         LazyColumn(Modifier.weight(1f).padding(horizontal = 12.dp).pointerInput(Unit) { detectTapGestures { kbCtl.hide() } }, state = listState) {
             if (msgs.isEmpty()) item(key = "empty") {
                 EmptyState("> prime online_", "type below to talk to Prime directly. goes over your PC link, never SMS.") }
             items(msgs, key = { it.id }) { m ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = if (m.outgoing) Alignment.End else Alignment.Start) {
-                    Text(m.text, color = if (m.outgoing) Pal.Body else Green, fontFamily = Mono, fontSize = TypeScale.Body,
+                    Text(m.text, color = if (m.outgoing) Pal.Body else Green, fontFamily = UiFont, fontSize = TypeScale.Body,
                         modifier = Modifier.padding(start = if (m.outgoing) Ui.OutgoingIndent else 0.dp, end = if (m.outgoing) 0.dp else Ui.OutgoingIndent)
-                            .panel(if (m.outgoing) Pal.S2c else Color(0xFF06140B), if (m.outgoing) Pal.Line2 else FaintGreen)
+                            .panel(if (m.outgoing) Pal.S2c else Pal.PrimeBg, if (m.outgoing) Pal.Line2 else FaintGreen)
                             .combinedClickableCopy(ctx, m.text).padding(horizontal = 12.dp, vertical = 9.dp))
                     val meta = stampPrime(m.ts) + if (m.outgoing) when (m.status) { "queued" -> "  · waiting for PC link"; "sent" -> "  · sent"; "delivered" -> "  · ✓"; else -> "" } else "  · prime"
-                    Text(meta, color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp))
+                    Text(meta, color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp))
                 }
             }
             if (thinking) item(key = "thinking") {
-                Text("prime is thinking" + ".".repeat(tick % 4), color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label,
+                Text("prime is thinking" + ".".repeat(tick % 4), color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label,
                     modifier = Modifier.padding(vertical = 6.dp).semantics { contentDescription = "Prime is thinking" })
             }
         }

@@ -23,8 +23,8 @@ import androidx.compose.ui.semantics.contentDescription
 import kotlin.math.abs
 import kotlin.random.Random
 
-val Black = Color(0xFF000000)
-val Amber = Color(0xFFFFB000)
+val Black: Color @Composable get() = Pal.Bg
+val Amber: Color @Composable get() = Color(LocalTheme.current.palette.accent3)
 /** JetBrains Mono NL (no ligatures; SIL OFL 1.1, see assets/licenses). Missing glyphs (katakana) fall back to the system font. */
 val Mono = FontFamily(
     androidx.compose.ui.text.font.Font(com.example.emit.R.font.jbmono_regular, androidx.compose.ui.text.font.FontWeight.Normal),
@@ -56,11 +56,12 @@ fun GlyphIcon(key: String, size: Int = 40, group: Boolean = false) {
             shown = base
         }
     }
-    val glyphC = Color(Pal.ensure(LocalAccent.current.argb.let { if (it == ChatPalette.DEFAULT.argb) Pal.PRIMARY else it }, Pal.S2, 4.5))
-    Box(Modifier.size(size.dp).background(Pal.S2c, androidx.compose.foundation.shape.RoundedCornerShape((size / 4).dp))
-        .border(1.dp, Color(Pal.tint(LocalAccent.current.argb).line), androidx.compose.foundation.shape.RoundedCornerShape((size / 4).dp)), contentAlignment = Alignment.Center) {
-        if (group) Text(shown.toString() + glyphFor(key.reversed() + "#"), color = glyphC, fontFamily = Mono, fontSize = (size / 3).sp, modifier = Modifier.semantics { contentDescription = "group avatar" })
-        else Text(shown.toString(), color = glyphC, fontFamily = Mono, fontSize = (size / 2).sp, modifier = Modifier.semantics { contentDescription = "contact avatar" })
+    val glyphC = Color(Pal.ensure(LocalAccent.current.argb.let { if (it == ChatPalette.DEFAULT.argb) LocalTheme.current.palette.primary else it }, LocalTheme.current.palette.s2, 4.5))
+    val tile = LocalTheme.current.shape((size / 4).dp)
+    Box(Modifier.size(size.dp).background(Pal.S2c, tile)
+        .border(1.dp, Color(Pal.tint(LocalAccent.current.argb, LocalTheme.current.palette.bg, LocalTheme.current.palette.s1, LocalTheme.current.palette.line, LocalTheme.current.palette.body, LocalTheme.current.palette.dim).line), tile), contentAlignment = Alignment.Center) {
+        if (group) Text(shown.toString() + glyphFor(key.reversed() + "#"), color = glyphC, fontFamily = UiFont, fontSize = (size / 3).sp, modifier = Modifier.semantics { contentDescription = "group avatar" })
+        else Text(shown.toString(), color = glyphC, fontFamily = UiFont, fontSize = (size / 2).sp, modifier = Modifier.semantics { contentDescription = "contact avatar" })
     }
 }
 
@@ -101,7 +102,7 @@ fun BlinkCursor() {
     var on by remember { mutableStateOf(true) }
     val still = rememberReduceMotion()
     LaunchedEffect(still) { while (!still) { delay(530); on = !on } }
-    Text("█", color = if (on) Green else Color.Transparent, fontFamily = Mono)
+    Text("█", color = if (on) Green else Color.Transparent, fontFamily = UiFont)
 }
 
 /** Glitch overlay: jitter, red/cyan split, scanlines. Drive with `active` for ~350ms on navigation. */
@@ -110,16 +111,18 @@ fun GlitchOverlay(active: Boolean) {
     if (!active || rememberReduceMotion()) return
     var t by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(40); t++ } }
+    val fx = LocalTheme.current.palette
+    val splitA = Color(fx.glitchA); val splitB = Color(fx.glitchB); val scan = Color(fx.glitchScan)
     Canvas(Modifier.fillMaxSize()) {
         t
         val bands = 6
         repeat(bands) {
             val y = Random.nextFloat() * size.height; val h = Random.nextFloat() * 30f + 4f
             val dx = (Random.nextFloat() - 0.5f) * 40f
-            drawRect(Color(0x55FF0040), Offset(dx, y), androidx.compose.ui.geometry.Size(size.width, h))
-            drawRect(Color(0x5500FFFF), Offset(-dx, y + h / 2), androidx.compose.ui.geometry.Size(size.width, h))
+            drawRect(splitA, Offset(dx, y), androidx.compose.ui.geometry.Size(size.width, h))
+            drawRect(splitB, Offset(-dx, y + h / 2), androidx.compose.ui.geometry.Size(size.width, h))
         }
         var y = 0f
-        while (y < size.height) { drawRect(Color(0x22000000), Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, 2f)); y += 4f }
+        while (y < size.height) { drawRect(scan, Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, 2f)); y += 4f }
     }
 }

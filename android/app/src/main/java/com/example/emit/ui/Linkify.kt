@@ -39,7 +39,7 @@ object LinkFinder {
         return hits.sortedBy { it.start }
     }
 
-    fun annotate(prefix: String, body: String, linkColor: Color, highlight: String = "", current: Boolean = false): AnnotatedString = buildAnnotatedString {
+    fun annotate(prefix: String, body: String, linkColor: Color, highlight: String = "", current: Boolean = false, searchBg: Color = Color(MatrixTheme.palette.searchBg), searchFg: Color = Color(MatrixTheme.palette.searchFg)): AnnotatedString = buildAnnotatedString {
         append(prefix)
         val style = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
         var i = 0
@@ -50,7 +50,7 @@ object LinkFinder {
         }
         append(body.substring(i))
         ThreadSearch.ranges(body, highlight).forEach { r ->
-            addStyle(SpanStyle(background = if (current) Color(0xFFFFB000) else linkColor.copy(alpha = 0.35f), color = if (current) Color.Black else Color.Unspecified),
+            addStyle(SpanStyle(background = if (current) searchBg else linkColor.copy(alpha = 0.35f), color = if (current) searchFg else Color.Unspecified),
                 prefix.length + r.first, prefix.length + r.last + 1)
         }
     }
