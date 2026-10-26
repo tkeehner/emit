@@ -30,6 +30,7 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
@@ -241,7 +242,9 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
     Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
         listOf(slots.left, slots.center, slots.right).forEachIndexed { i, w ->
             val center = i == 1
-            Box(Modifier.weight(1f).fillMaxHeight().clickable(enabled = w != null) { w?.let(kb::pick) },
+            // Matrix: the border is the whole third of the strip. Neon: a chip around the word.
+            Box(Modifier.weight(1f).fillMaxHeight().clickable(enabled = w != null) { w?.let(kb::pick) }
+                .then(if (!neon && center && w != null) Modifier.border(1.dp, if (slots.autocorrect != null) Green else FaintGreen, Pal.R8) else Modifier),
                 contentAlignment = Alignment.Center) {
                 val label = w ?: if (e == null && center) (if (kb.dictState is DictState.Failed) "> dict offline" else "> loading dict...") else ""
                 if (neon && center && w != null) {
@@ -249,10 +252,8 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
                         Text(label, color = Pal.Cyan, fontFamily = KeyFont, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 } else {
-                    Box(if (center && w != null) Modifier.border(1.dp, if (slots.autocorrect != null) Green else FaintGreen, Pal.R8).padding(horizontal = 10.dp, vertical = 4.dp) else Modifier) {
-                        Text(label, color = if (center) Green else DimGreen, fontFamily = UiFont,
-                            fontSize = if (center) 16.sp else 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                    Text(label, color = if (center) Green else DimGreen, fontFamily = UiFont,
+                        fontSize = if (center) 16.sp else 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (i < 2) Box(Modifier.width(1.dp).height(22.dp).background(if (neon) Pal.Line2 else FaintGreen))
@@ -415,10 +416,10 @@ private fun RowScope.MatrixKeyFace(k: KeySpec, down: Boolean, h: androidx.compos
         contentAlignment = Alignment.Center,
     ) {
         Text(k.label, color = if (down) Pal.KeyDown else green, fontFamily = KeyFont, fontSize = if (k.label.length > 2) 15.sp else 22.sp)
-        if (down && k.preview && keyGlowEnabled()) {
+        if (down && k.preview) {
             val lift = with(androidx.compose.ui.platform.LocalDensity.current) { (h + 8.dp).roundToPx() }
             Popup(alignment = Alignment.Center, offset = IntOffset(0, -lift), properties = PopupProperties(focusable = false, clippingEnabled = false)) {
-                Box(Modifier.size(width = 52.dp, height = 62.dp).background(Black).border(2.dp, green), contentAlignment = Alignment.Center) {
+                Box(Modifier.testTag("key-preview").size(width = 52.dp, height = 62.dp).background(Black).border(2.dp, green), contentAlignment = Alignment.Center) {
                     Text(k.label, color = green, fontFamily = KeyFont, fontSize = 32.sp)
                 }
             }
@@ -441,7 +442,7 @@ private fun RowScope.NeonKeyFace(k: KeySpec, down: Boolean, h: androidx.compose.
         accent != null -> accent.copy(alpha = 0.6f)
         else -> Pal.Line2
     }
-    val label = if (k.label.length == 1) k.label.uppercase() else k.label
+    val label = k.label
     Box(
         Modifier.weight(k.weight).fillMaxHeight().padding(horizontal = 1.5.dp, vertical = 2.5.dp)
             .then(if (glow) Modifier.shadow(8.dp, shape, ambientColor = Pal.Primary, spotColor = Pal.Primary) else Modifier)
@@ -452,18 +453,20 @@ private fun RowScope.NeonKeyFace(k: KeySpec, down: Boolean, h: androidx.compose.
         Text(label, color = if (down) Pal.OnPrimary else (accent ?: Pal.Body), fontFamily = KeyFont,
             fontWeight = if (down || k.tone != KeyTone.NORMAL) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Medium,
             fontSize = if (k.label.length > 2) 15.sp else 22.sp)
-        if (glow && k.preview) {
+        if (down && k.preview) {
             val lift = with(androidx.compose.ui.platform.LocalDensity.current) { (h + 8.dp).roundToPx() }
             val pop = CutCornerShape(9.dp, 9.dp)
-            val shown = label.uppercase()
             Popup(alignment = Alignment.Center, offset = IntOffset(0, -lift), properties = PopupProperties(focusable = false, clippingEnabled = false)) {
-                Box(Modifier.size(width = 56.dp, height = 66.dp).shadow(10.dp, pop, ambientColor = Pal.Primary, spotColor = Pal.Primary)
+                Box(Modifier.testTag("key-preview").size(width = 56.dp, height = 66.dp)
+                    .then(if (glow) Modifier.shadow(10.dp, pop, ambientColor = Pal.Primary, spotColor = Pal.Primary) else Modifier)
                     .background(Black, pop).border(1.dp, Pal.Primary, pop), contentAlignment = Alignment.Center) {
-                    Text(shown, color = Color(LocalTheme.current.palette.accent3), fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        fontSize = 34.sp, modifier = Modifier.offset(x = (-2).dp))
-                    Text(shown, color = Pal.Cyan, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        fontSize = 34.sp, modifier = Modifier.offset(x = 2.dp))
-                    Text(shown, color = Pal.Primary, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 34.sp)
+                    if (glow) {
+                        Text(label, color = Color(LocalTheme.current.palette.accent3), fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 34.sp, modifier = Modifier.offset(x = (-2).dp))
+                        Text(label, color = Pal.Cyan, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 34.sp, modifier = Modifier.offset(x = 2.dp))
+                    }
+                    Text(label, color = Pal.Primary, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 34.sp)
                 }
             }
         }

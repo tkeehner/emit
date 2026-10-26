@@ -90,7 +90,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLink: () -> Unit, onOpenAbout: () -
             var keyGlow by remember { mutableStateOf(EffectPrefs.keyGlowOn(ctx)) }
             Toggle("glitch effects", glitch, "screen-change glitch, avatar flicker") { glitch = !glitch; EffectPrefs.setGlitch(ctx, glitch) }
             Toggle("scanlines + glow", crt, "CRT lines and title glow") { crt = !crt; UiPrefs.setCrt(ctx, crt) }
-            Toggle("key press glow", keyGlow, "neon glow + popup on keys") { keyGlow = !keyGlow; EffectPrefs.setKeyGlow(ctx, keyGlow) }
+            Toggle("key press glow", keyGlow, "glow around a pressed key") { keyGlow = !keyGlow; EffectPrefs.setKeyGlow(ctx, keyGlow) }
             Toggle("link previews (fetch title + domain; off = nothing fetched)", prev) { prev = !prev; UiPrefs.setPreviews(ctx, prev) }
             Section("PC link & Prime")
             Toggle("PC app may approve sends", pcApproval) { pcApproval = !pcApproval; store.allowPcApproval = pcApproval }
