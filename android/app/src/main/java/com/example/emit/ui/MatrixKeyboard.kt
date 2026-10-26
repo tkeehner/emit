@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerId
@@ -28,6 +30,7 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
@@ -179,10 +182,14 @@ private val ROWS_SYM = listOf("[]{}#%^*+=", "_\\|~<>€£¥•", ".,?!'")
 private val PAD = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("+", "0", "#"))
 private val SEPARATORS = setOf(".", ",", "!", "?", ";", ":")
 
+/** Neon key color. Matrix ignores it and stays green. */
+private enum class KeyTone { NORMAL, SECONDARY, ACCENT, PRIMARY }
+
 /** One key's spec. [preview] = show the enlarged popup (character keys). */
 private class KeySpec(
     val label: String, val weight: Float, val repeat: Boolean = false, val highlight: Boolean = false,
-    val preview: Boolean = false, val onLong: (() -> Unit)? = null, val action: () -> Unit,
+    val preview: Boolean = false, val onLong: (() -> Unit)? = null, val tone: KeyTone = KeyTone.NORMAL,
+    val action: () -> Unit,
 )
 
 @Composable
@@ -192,12 +199,19 @@ fun MatrixKeyboard(kb: KbController) {
     CompositionLocalProvider(LocalAccent provides ChatPalette.DEFAULT) {
         AnimatedVisibility(kb.visible, enter = slideInVertically(tween(140)) { it }, exit = slideOutVertically(tween(110)) { it }) {
             val jitter = remember { Animatable(0f) }
-            LaunchedEffect(Unit) { repeat(5) { jitter.snapTo((Random.nextFloat() - 0.5f) * 18f); delay(35) }; jitter.snapTo(0f) }
+            val glitchOk = glitchEnabled() && !rememberReduceMotion()
+            LaunchedEffect(Unit) {
+                if (!glitchOk) return@LaunchedEffect
+                repeat(5) { jitter.snapTo((Random.nextFloat() - 0.5f) * 18f); delay(35) }; jitter.snapTo(0f)
+            }
             var settings by remember { mutableStateOf(false) }
+            val neonKeys = LocalTheme.current.keyStyle == KeyStyle.NEON
             Box(Modifier.fillMaxWidth().background(Black).graphicsLayer { translationX = jitter.value }) {
                 CodeRain(Modifier.matchParentSize(), alpha = 0.06f)
                 Column(Modifier.fillMaxWidth().padding(horizontal = 1.dp, vertical = 2.dp)) {
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(FaintGreen))
+                    if (neonKeys) Box(Modifier.fillMaxWidth().height(2.dp).background(
+                        Brush.horizontalGradient(listOf(Color(LocalTheme.current.palette.accent3), Pal.Primary, Pal.Cyan))))
+                    else Box(Modifier.fillMaxWidth().height(1.dp).background(FaintGreen))
                     if (kb.target?.phone == true) DialPad(kb)
                     else if (kb.emojiMode && kb.emojiQuery == null) EmojiPanel(kb)
                     else {
@@ -224,20 +238,29 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
         catch (c: kotlinx.coroutines.CancellationException) { throw c }
         catch (t: Throwable) { android.util.Log.w("MatrixSMS", "suggest: failed", t); Slots(null, null, null) }
     }
+    val neon = LocalTheme.current.keyStyle == KeyStyle.NEON
     Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
         listOf(slots.left, slots.center, slots.right).forEachIndexed { i, w ->
             val center = i == 1
+            // Matrix: the border is the whole third of the strip. Neon: a chip around the word.
             Box(Modifier.weight(1f).fillMaxHeight().clickable(enabled = w != null) { w?.let(kb::pick) }
-                .then(if (center && w != null) Modifier.border(1.dp, if (slots.autocorrect != null) Green else FaintGreen, Pal.R8) else Modifier),
+                .then(if (!neon && center && w != null) Modifier.border(1.dp, if (slots.autocorrect != null) Green else FaintGreen, Pal.R8) else Modifier),
                 contentAlignment = Alignment.Center) {
-                Text(w ?: if (e == null && center) (if (kb.dictState is DictState.Failed) "> dict offline" else "> loading dict...") else "", color = if (center) Green else DimGreen, fontFamily = Mono,
-                    fontSize = if (center) 16.sp else 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val label = w ?: if (e == null && center) (if (kb.dictState is DictState.Failed) "> dict offline" else "> loading dict...") else ""
+                if (neon && center && w != null) {
+                    Box(Modifier.border(1.dp, Pal.Cyan, CutCornerShape(6.dp, 6.dp)).padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text(label, color = Pal.Cyan, fontFamily = KeyFont, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else {
+                    Text(label, color = if (center) Green else DimGreen, fontFamily = UiFont,
+                        fontSize = if (center) 16.sp else 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
-            if (i < 2) Box(Modifier.width(1.dp).height(22.dp).background(FaintGreen))
+            if (i < 2) Box(Modifier.width(1.dp).height(22.dp).background(if (neon) Pal.Line2 else FaintGreen))
         }
         kb.target?.paste?.let { p ->
             Box(Modifier.width(44.dp).fillMaxHeight().tap { p() }, contentAlignment = Alignment.Center) {
-                Text("[⎘]", color = Green, fontFamily = Mono, fontSize = TypeScale.Label)
+                Text("[⎘]", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label)
             }
         }
         Box(Modifier.width(36.dp).fillMaxHeight().tap { onGear() }, contentAlignment = Alignment.Center) {
@@ -250,13 +273,13 @@ private fun SuggestionStrip(kb: KbController, onGear: () -> Unit) {
 private fun SettingsRow(kb: KbController, onClose: () -> Unit) {
     // Raised sheet in the settings.png style: label + sublabel + pill per row, filled OK.
     Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).panel(Pal.S2c, Pal.Line2, Pal.R12).padding(6.dp)) {
-        Text("KEYBOARD", color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp))
+        Text("KEYBOARD", color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Micro, modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp))
         @Composable fun T(label: String, sub: String, on: Boolean, f: () -> Unit) = Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)
             .panel(Pal.S1c, Pal.Line, Pal.R10).semantics(mergeDescendants = true) { role = androidx.compose.ui.semantics.Role.Switch; stateDescription = if (on) "on" else "off" }
             .tap { f() }.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, maxLines = 1)
-                Text(sub, color = FaintGreen, fontFamily = Mono, fontSize = TypeScale.Meta)
+                Text(label, color = if (on) Pal.Body else DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, maxLines = 1)
+                Text(sub, color = FaintGreen, fontFamily = UiFont, fontSize = TypeScale.Meta)
             }
             Spacer(Modifier.width(10.dp)); Pill(on)
         }
@@ -264,7 +287,7 @@ private fun SettingsRow(kb: KbController, onClose: () -> Unit) {
         T("auto caps", "capitalize sentence starts", kb.autocap) { kb.toggleAutocapTo(!kb.autocap) }
         T("suggestions", "show the word strip", kb.showSuggestions) { kb.toggleSuggestionsTo(!kb.showSuggestions) }
         Box(Modifier.fillMaxWidth().padding(top = 6.dp).heightIn(min = Ui.Touch).background(Pal.Primary, Pal.R8).tap { onClose() }, contentAlignment = Alignment.Center) {
-            Text("[ OK ]", color = Color(0xFF001A08), fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = TypeScale.Label) }
+            Text("[ OK ]", color = Pal.OnPrimary, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = TypeScale.Label) }
     }
 }
 
@@ -289,28 +312,28 @@ private fun TextKeys(kb: KbController) {
     rows.forEachIndexed { i, row ->
         val keys = ArrayList<KeySpec>()
         if (i == 2) keys += when (layer) {
-            Layer.LETTERS -> KeySpec(when (shift) { ShiftMode.OFF -> "⇧"; ShiftMode.ONCE -> "⬆"; ShiftMode.LOCK -> "⇪" }, 1.4f, highlight = shift != ShiftMode.OFF) {
+            Layer.LETTERS -> KeySpec(when (shift) { ShiftMode.OFF -> "⇧"; ShiftMode.ONCE -> "⬆"; ShiftMode.LOCK -> "⇪" }, 1.4f, highlight = shift != ShiftMode.OFF, tone = KeyTone.SECONDARY) {
                 val now = System.currentTimeMillis(); shift = nextShift(shift, now, lastShiftTap); lastShiftTap = now; manualShift = true
             }
-            Layer.NUM -> KeySpec("#+=", 1.4f) { layer = Layer.SYM }
-            Layer.SYM -> KeySpec("123", 1.4f) { layer = Layer.NUM }
+            Layer.NUM -> KeySpec("#+=", 1.4f, tone = KeyTone.SECONDARY) { layer = Layer.SYM }
+            Layer.SYM -> KeySpec("123", 1.4f, tone = KeyTone.SECONDARY) { layer = Layer.NUM }
         }
         row.forEach { ch ->
             val label = if (layer == Layer.LETTERS && shift != ShiftMode.OFF) ch.uppercaseChar().toString() else ch.toString()
             keys += KeySpec(label, 1f, preview = true) { type(label) }
         }
-        if (i == 2) keys += KeySpec("⌫", 1.4f, repeat = true) { kb.emojiQuery?.let { kb.emojiQuery = it.dropLast(1) } ?: kb.backspace() }
+        if (i == 2) keys += KeySpec("⌫", 1.4f, repeat = true, tone = KeyTone.ACCENT) { kb.emojiQuery?.let { kb.emojiQuery = it.dropLast(1) } ?: kb.backspace() }
         // Row 2 (9 keys) is inset by half a key on each side; the inset still maps to the nearest key.
         KeyRow(keys, inset = if (i == 1 && layer == Layer.LETTERS) 0.5f else 0f)
     }
     KeyRow(listOf(
-        KeySpec(if (layer == Layer.LETTERS) "123" else "ABC", 1.3f) { layer = if (layer == Layer.LETTERS) Layer.NUM else Layer.LETTERS },
+        KeySpec(if (layer == Layer.LETTERS) "123" else "ABC", 1.3f, tone = KeyTone.SECONDARY) { layer = if (layer == Layer.LETTERS) Layer.NUM else Layer.LETTERS },
         KeySpec("⌨", 1f, onLong = { kb.toggleAutocorrectTo(!kb.autocorrect) }) { kb.useSystem = true },
         KeySpec("☺", 1f) { kb.emojiQuery = null; kb.emojiMode = true },
         KeySpec(",", 1f, preview = true) { type(",") },
         KeySpec("space", 3.2f) { kb.emojiQuery?.let { kb.emojiQuery = "$it " } ?: run { kb.separator(" "); shift = afterChar(shift) } },
         KeySpec(".", 1f, preview = true) { type(".") },
-        KeySpec(if (kb.target?.singleLine == true) "done" else "⏎", 1.5f) {
+        KeySpec(if (kb.target?.singleLine == true) "done" else "⏎", 1.5f, tone = KeyTone.PRIMARY) {
             if (kb.target?.singleLine == true) kb.hide() else kb.separator("\n")
         },
     ))
@@ -321,8 +344,8 @@ private fun DialPad(kb: KbController) {
     PAD.forEach { row -> KeyRow(row.map { d -> KeySpec(d, 1f, preview = true) { kb.edit { it.insert(d) } } }, tall = true) }
     KeyRow(listOf(
         KeySpec("⌨", 1f) { kb.useSystem = true },
-        KeySpec("⌫", 1f, repeat = true) { kb.edit { it.backspace() } },
-        KeySpec("done", 1f) { kb.hide() },
+        KeySpec("⌫", 1f, repeat = true, tone = KeyTone.ACCENT) { kb.edit { it.backspace() } },
+        KeySpec("done", 1f, tone = KeyTone.PRIMARY) { kb.hide() },
     ), tall = true)
 }
 
@@ -380,6 +403,11 @@ private fun KeyRow(keys: List<KeySpec>, inset: Float = 0f, tall: Boolean = false
 
 @Composable
 private fun RowScope.KeyFace(k: KeySpec, down: Boolean, h: androidx.compose.ui.unit.Dp) {
+    if (LocalTheme.current.keyStyle == KeyStyle.NEON) NeonKeyFace(k, down, h) else MatrixKeyFace(k, down, h)
+}
+
+@Composable
+private fun RowScope.MatrixKeyFace(k: KeySpec, down: Boolean, h: androidx.compose.ui.unit.Dp) {
     val green = Green
     Box(
         Modifier.weight(k.weight).fillMaxHeight().padding(horizontal = 1.5.dp, vertical = 2.5.dp)
@@ -387,12 +415,58 @@ private fun RowScope.KeyFace(k: KeySpec, down: Boolean, h: androidx.compose.ui.u
             .background(if (down) green.copy(alpha = 0.35f) else if (k.highlight) green.copy(alpha = 0.12f) else Black),
         contentAlignment = Alignment.Center,
     ) {
-        Text(k.label, color = if (down) Color.White else green, fontFamily = Mono, fontSize = if (k.label.length > 2) 15.sp else 22.sp)
+        Text(k.label, color = if (down) Pal.KeyDown else green, fontFamily = KeyFont, fontSize = if (k.label.length > 2) 15.sp else 22.sp)
         if (down && k.preview) {
             val lift = with(androidx.compose.ui.platform.LocalDensity.current) { (h + 8.dp).roundToPx() }
             Popup(alignment = Alignment.Center, offset = IntOffset(0, -lift), properties = PopupProperties(focusable = false, clippingEnabled = false)) {
-                Box(Modifier.size(width = 52.dp, height = 62.dp).background(Black).border(2.dp, green), contentAlignment = Alignment.Center) {
-                    Text(k.label, color = green, fontFamily = Mono, fontSize = 32.sp)
+                Box(Modifier.testTag("key-preview").size(width = 52.dp, height = 62.dp).background(Black).border(2.dp, green), contentAlignment = Alignment.Center) {
+                    Text(k.label, color = green, fontFamily = KeyFont, fontSize = 32.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.NeonKeyFace(k: KeySpec, down: Boolean, h: androidx.compose.ui.unit.Dp) {
+    val shape = CutCornerShape(6.dp, 6.dp)
+    val accent = when (k.tone) {
+        KeyTone.SECONDARY -> Pal.Cyan
+        KeyTone.ACCENT -> Color(LocalTheme.current.palette.accent3)
+        KeyTone.PRIMARY -> Pal.Primary
+        KeyTone.NORMAL -> null
+    }
+    val glow = down && keyGlowEnabled()
+    val border = when {
+        down || k.highlight -> Pal.Primary
+        accent != null -> accent.copy(alpha = 0.6f)
+        else -> Pal.Line2
+    }
+    val label = k.label
+    Box(
+        Modifier.weight(k.weight).fillMaxHeight().padding(horizontal = 1.5.dp, vertical = 2.5.dp)
+            .then(if (glow) Modifier.shadow(8.dp, shape, ambientColor = Pal.Primary, spotColor = Pal.Primary) else Modifier)
+            .background(if (down) Pal.Primary else Pal.S2c, shape)
+            .border(1.dp, border, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = if (down) Pal.OnPrimary else (accent ?: Pal.Body), fontFamily = KeyFont,
+            fontWeight = if (down || k.tone != KeyTone.NORMAL) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Medium,
+            fontSize = if (k.label.length > 2) 15.sp else 22.sp)
+        if (down && k.preview) {
+            val lift = with(androidx.compose.ui.platform.LocalDensity.current) { (h + 8.dp).roundToPx() }
+            val pop = CutCornerShape(9.dp, 9.dp)
+            Popup(alignment = Alignment.Center, offset = IntOffset(0, -lift), properties = PopupProperties(focusable = false, clippingEnabled = false)) {
+                Box(Modifier.testTag("key-preview").size(width = 56.dp, height = 66.dp)
+                    .then(if (glow) Modifier.shadow(10.dp, pop, ambientColor = Pal.Primary, spotColor = Pal.Primary) else Modifier)
+                    .background(Black, pop).border(1.dp, Pal.Primary, pop), contentAlignment = Alignment.Center) {
+                    if (glow) {
+                        Text(label, color = Color(LocalTheme.current.palette.accent3), fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 34.sp, modifier = Modifier.offset(x = (-2).dp))
+                        Text(label, color = Pal.Cyan, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 34.sp, modifier = Modifier.offset(x = 2.dp))
+                    }
+                    Text(label, color = Pal.Primary, fontFamily = KeyFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 34.sp)
                 }
             }
         }

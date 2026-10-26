@@ -53,7 +53,7 @@ data class Btn(val label: String, val color: Color, val filled: Boolean = false,
 fun TermButton(b: Btn, modifier: Modifier = Modifier, fontSp: Int = 14, haptic: Boolean = false) {
     val hapticView = androidx.compose.ui.platform.LocalView.current
     val base = if (b.filled) modifier.background(b.color, Pal.R8) else modifier.panel(Pal.S2c, b.color.copy(alpha = 0.6f), Pal.R8)
-    Text(b.label, color = if (b.filled) Color(0xFF001A08) else b.color, fontFamily = Mono, fontSize = TypeScale.snap(fontSp), maxLines = 1, softWrap = false,
+    Text(b.label, color = if (b.filled) Pal.OnPrimary else b.color, fontFamily = UiFont, fontSize = TypeScale.snap(fontSp), maxLines = 1, softWrap = false,
         overflow = TextOverflow.Clip, textAlign = TextAlign.Center,
         modifier = base.clickable { if (b.confirm) hapticView.confirm(); b.onClick() }.heightIn(min = Ui.Touch).wrapContentHeight(Alignment.CenterVertically)
             .padding(horizontal = 12.dp, vertical = 8.dp))
@@ -70,9 +70,11 @@ fun ButtonRow(vararg buttons: Btn, modifier: Modifier = Modifier, fontSp: Int = 
     }
 }
 
+@Composable
 fun Modifier.dialogBox(c: Color, w: Dp = Ui.DialogMaxWidth) = this.widthIn(max = w).fillMaxWidth().background(Pal.S2c, Pal.R12).border(1.dp, Pal.Line2, Pal.R12).padding(Ui.DialogPad)
 
-/** Rounded elevated surface with a 1dp hairline. */
+/** Elevated surface with a 1dp hairline. Corner treatment comes from the active theme. */
+@Composable
 fun Modifier.panel(bg: Color = Pal.S1c, line: Color = Pal.Line, shape: androidx.compose.ui.graphics.Shape = Pal.R10) =
     this.background(bg, shape).border(1.dp, line, shape)
 
@@ -83,16 +85,19 @@ fun Chip(label: String, on: Boolean = false, color: Color = Pal.Primary, desc: S
         .then(if (desc != null) Modifier.semantics(mergeDescendants = true) { contentDescription = desc } else Modifier),
         verticalAlignment = Alignment.CenterVertically) {
         if (on) { Box(Modifier.size(6.dp).background(color, androidx.compose.foundation.shape.CircleShape)); Spacer(Modifier.width(5.dp)) }
-        Text(label, color = if (on) color else Pal.Dim, fontFamily = Mono, fontSize = TypeScale.Micro, maxLines = 1, softWrap = false)
+        Text(label, color = if (on) color else Pal.Dim, fontFamily = UiFont, fontSize = TypeScale.Micro, maxLines = 1, softWrap = false)
     }
 }
 
-/** Pill toggle (48dp touch row is the caller's). */
+/** Pill toggle (48dp touch row is the caller's). Cut themes use a small chamfer; an 11dp cut would eat the track. */
 @Composable
 fun Pill(on: Boolean) {
-    Box(Modifier.size(38.dp, 22.dp).panel(if (on) Color(0xFF0F3A1E) else Color(0xFF1A231D), if (on) Pal.OutLine else Pal.Line2, androidx.compose.foundation.shape.RoundedCornerShape(11.dp)),
+    val cut = LocalTheme.current.corners == CornerStyle.CUT
+    val track = if (cut) CutCornerShape(3.dp, 3.dp) else androidx.compose.foundation.shape.RoundedCornerShape(11.dp)
+    val knob = if (cut) CutCornerShape(2.dp, 2.dp) else androidx.compose.foundation.shape.CircleShape
+    Box(Modifier.size(38.dp, 22.dp).panel(if (on) Pal.ToggleOn else Pal.ToggleOff, if (on && cut) Pal.Primary else if (on) Pal.OutLine else Pal.Line2, track),
         contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart) {
-        Box(Modifier.padding(horizontal = 3.dp).size(14.dp).background(if (on) Pal.Primary else Pal.Faint, androidx.compose.foundation.shape.CircleShape))
+        Box(Modifier.padding(horizontal = 3.dp).size(14.dp).background(if (on) Pal.Primary else Pal.Faint, knob))
     }
 }
 
@@ -113,6 +118,47 @@ object RainPref {
     fun load(c: android.content.Context): Int = level.value ?: c.getSharedPreferences("ui_prefs", 0).getInt("rain", 1).coerceIn(0, 2).also { level.value = it }
     fun set(c: android.content.Context, v: Int) { c.getSharedPreferences("ui_prefs", 0).edit().putInt("rain", v).apply(); level.value = v }
 }
+
+/** Active theme id, stored next to the rain level. Unknown ids fall back to Matrix. */
+object ThemePref {
+    val id = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    fun load(c: android.content.Context): String =
+        id.value ?: (c.getSharedPreferences("ui_prefs", 0).getString("theme", MatrixTheme.id) ?: MatrixTheme.id).also { id.value = it }
+    fun set(c: android.content.Context, themeId: String) {
+        val resolved = Themes.all.firstOrNull { it.id == themeId }?.id ?: MatrixTheme.id
+        c.getSharedPreferences("ui_prefs", 0).edit().putString("theme", resolved).apply()
+        id.value = resolved
+    }
+}
+
+/** Glitch and key-glow. Both default on, same prefs file as rain. Off skips the effect; it does not add a redraw loop. */
+object EffectPrefs {
+    private const val P = "ui_prefs"
+    val glitch = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    val keyGlow = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    fun glitchOn(c: android.content.Context): Boolean =
+        glitch.value ?: c.getSharedPreferences(P, 0).getBoolean("glitch", true).also { glitch.value = it }
+    fun setGlitch(c: android.content.Context, on: Boolean) { c.getSharedPreferences(P, 0).edit().putBoolean("glitch", on).apply(); glitch.value = on }
+    fun keyGlowOn(c: android.content.Context): Boolean =
+        keyGlow.value ?: c.getSharedPreferences(P, 0).getBoolean("key_glow", true).also { keyGlow.value = it }
+    fun setKeyGlow(c: android.content.Context, on: Boolean) { c.getSharedPreferences(P, 0).edit().putBoolean("key_glow", on).apply(); keyGlow.value = on }
+}
+
+@Composable
+fun glitchEnabled(): Boolean {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v by EffectPrefs.glitch.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { EffectPrefs.glitchOn(ctx) }
+    return v ?: true
+}
+
+@Composable
+fun keyGlowEnabled(): Boolean {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val v by EffectPrefs.keyGlow.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { EffectPrefs.keyGlowOn(ctx) }
+    return v ?: true
+}
 @androidx.compose.runtime.Composable
 fun rainAlpha(): Float {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -121,30 +167,36 @@ fun rainAlpha(): Float {
     return Pal.RAIN[(v ?: 1).coerceIn(0, 2)]
 }
 /** Dark translucent backing for small text drawn straight over the rain (keeps >= 4.5:1 vs the brightest glyph). */
-fun Modifier.scrim() = this.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = Pal.SURFACE_A), Pal.R8).padding(horizontal = 4.dp, vertical = 1.dp)
+@Composable
+fun Modifier.scrim() = this.background(Pal.Bg.copy(alpha = Pal.SURFACE_A), Pal.R8).padding(horizontal = 4.dp, vertical = 1.dp)
 val LocalCrt = androidx.compose.runtime.staticCompositionLocalOf { false }
 
 /** Root wrapper: provides the CRT flag, draws the cached scanline overlay, shows the cold-start boot line once. */
 @Composable
 fun CrtHost(boot: Boolean, content: @Composable () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val savedTheme = androidx.compose.runtime.remember { ThemePref.load(ctx) }
     androidx.compose.runtime.LaunchedEffect(Unit) { UiPrefs.load(ctx) }
     val crt by UiPrefs.crt.collectAsState()
+    val themeId by ThemePref.id.collectAsState()
+    val theme = Themes.byId(themeId ?: savedTheme)
     val on = crt == true
     var booting by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(boot) }
     androidx.compose.runtime.LaunchedEffect(booting) { if (booting) { kotlinx.coroutines.delay(650); booting = false } }
-    androidx.compose.runtime.CompositionLocalProvider(LocalCrt provides on) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalCrt provides on, LocalTheme provides theme) {
         Box(Modifier.fillMaxSize()) {
             content()
-            if (on) Box(Modifier.fillMaxSize().drawWithCache {
-                val line = androidx.compose.ui.graphics.Color(0x1F000000); val step = 3.dp.toPx(); val h = 1.dp.toPx()
+            val scanOn = on || LocalTheme.current.scanlinesAlways
+            val scanColor = androidx.compose.ui.graphics.Color(LocalTheme.current.palette.crtScan)
+            if (scanOn) Box(Modifier.fillMaxSize().drawWithCache {
+                val line = scanColor; val step = 3.dp.toPx(); val h = 1.dp.toPx()
                 val path = androidx.compose.ui.graphics.Path().apply { var y = 0f; while (y < size.height) { addRect(androidx.compose.ui.geometry.Rect(0f, y, size.width, y + h)); y += step } }
                 onDrawWithContent { drawContent(); drawPath(path, line) }
             })
             androidx.compose.animation.AnimatedVisibility(booting, exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150))) {
                 Box(Modifier.fillMaxSize().background(Black).padding(Ui.ScreenPad), contentAlignment = Alignment.Center) {
                     Text("> boot emit v${com.example.emit.BuildConfig.VERSION_NAME}\n  e2e keys ok  ✓", color = Pal.Body,
-                        fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.panel(Pal.S2c, Pal.Line2, Pal.R12).padding(horizontal = 18.dp, vertical = 14.dp))
+                        fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.panel(Pal.S2c, Pal.Line2, Pal.R12).padding(horizontal = 18.dp, vertical = 14.dp))
                 }
             }
         }

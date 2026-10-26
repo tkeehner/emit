@@ -37,7 +37,7 @@ class RainContrastTest {
         val src = File("src/main/java/com/example/emit/ui/Screens.kt").readText()
         val body = src.substringAfter("fun ThreadScreen(").substringBefore("\nfun ComposeBar(")
         val root = body.lines().first { "testTag(\"thread-root\")" in it }
-        assertTrue("root must draw the opaque tint", "background(Color(ChatTint.bg))" in root && "copy(alpha" !in root)
+        assertTrue("root must draw an opaque background", ".background(" in root && "copy(alpha" !in root && "ChatTint.bg" in root)
         assertTrue("CodeRain must be composed right inside the thread root", root.substringAfter("thread-root").contains("CodeRain("))
         val content = body.lines().first { "testTag(\"thread-content\")" in it }
         assertFalse("thread content must not have a background", ".background(" in content)

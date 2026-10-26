@@ -154,8 +154,12 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         val jitter = remember { Animatable(0f) }
 
         LaunchedEffect(Unit) { IncomingBus.events.collect { refresh++; flash.snapTo(0.35f); flash.animateTo(0f, tween(450)) } }
-        // Glitch transition on every screen change.
+        // Glitch transition on every screen change. Off when the glitch toggle or system animations are off.
         LaunchedEffect(screen) {
+            val allow = com.example.emit.ui.EffectPrefs.glitchOn(this@MainActivity) &&
+                !com.example.emit.ui.Motion.reduced(android.provider.Settings.Global.getFloat(
+                    contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f))
+            if (!allow) { glitch = false; jitter.snapTo(0f); return@LaunchedEffect }
             glitch = true
             repeat(8) { jitter.snapTo((Random.nextFloat() - 0.5f) * 24f); delay(40) }
             jitter.snapTo(0f); glitch = false
@@ -338,11 +342,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                         NewMessageScreen(s.address, { go(Screen.Inbox) }, prefillBody = s.body, onSend = { a, b -> sendNew(a, b) },
                             search = { q -> withContext(Dispatchers.IO) { repo.searchContacts(q) } }) }
                 }
-                if (screen == Screen.Inbox && com.example.emit.ui.Overlay.open == 0) Text("[+ NEW]", color = Color(0xFF001A08), fontFamily = Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                if (screen == Screen.Inbox && com.example.emit.ui.Overlay.open == 0) Text(LocalTheme.current.chrome.fab, color = Pal.OnPrimary, fontFamily = DisplayFont, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).background(com.example.emit.ui.Pal.Primary, com.example.emit.ui.Pal.R12)
                         .clickable { go(Screen.Compose("")) }.heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 18.dp))
-                if (screen == Screen.Inbox && !isDefault() && permsVersion >= 0) Text("[!] not default SMS app - tap to fix", color = Amber, fontFamily = Mono,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).background(Color(0xFF120E06), com.example.emit.ui.Pal.R10).border(1.dp, Color(0xFF4A3A1C), com.example.emit.ui.Pal.R10).clickable {
+                if (screen == Screen.Inbox && !isDefault() && permsVersion >= 0) Text("[!] not default SMS app - tap to fix", color = Amber, fontFamily = UiFont,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).background(Pal.WarnBg, com.example.emit.ui.Pal.R10).border(1.dp, Pal.WarnLine, com.example.emit.ui.Pal.R10).clickable {
                         roleLauncher.launch(getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_SMS))
                     })
             }
