@@ -68,6 +68,15 @@ class LinkRpc(private val c: Context, private val store: LinkStore) {
                 ?: throw RpcError("not_found", "part $id has no data")
             JSONObject().put("part_id", id).put("mime", mime).put("size", bytes.size).put("data_b64", b64(bytes))
         }
+        "thread_for" -> {
+            // Find-or-create the 1:1 thread for a phone number so a draft can be staged for someone not texted before.
+            // Only creates an (empty) thread; nothing is sent. Texts still go create_draft -> request_send -> APPROVE on the phone.
+            val number = ThreadFor.normalize(p.optString("number"))
+            val tid = Telephony.Threads.getOrCreateThreadId(c, number)
+            val conv = repo.conversation(tid)
+            JSONObject().put("thread_id", tid).put("number", number).put("name", conv?.displayName?.takeIf { it.isNotBlank() } ?: repo.contactNames(setOf(number))[number] ?: number)
+                .put("addresses", JSONArray(conv?.addresses ?: listOf(number)))
+        }
         "create_draft" -> {
             val tid = p.getLong("thread_id"); val body = p.optString("body").trim().take(2000)
             if (body.isEmpty()) throw RpcError("bad_request", "body required")
@@ -140,5 +149,17 @@ class LinkRpc(private val c: Context, private val store: LinkStore) {
         }
         val sorted = (0 until out.length()).map { out.getJSONObject(it) }.sortedByDescending { it.getLong("date") }.take(limit)
         return JSONObject().put("results", JSONArray(sorted))
+    }
+}
+
+/** Validation for thread_for (pure, unit-tested): a plain dialable number, no USSD/MMI characters. */
+object ThreadFor {
+    fun normalize(raw: String): String {
+        val s = raw.trim()
+        if (s.any { it == '*' || it == '#' || it == ',' || it == ';' }) throw RpcError("bad_request", "number may not contain * # , ;")
+        val plus = s.startsWith("+")
+        val digits = s.removePrefix("+").filterNot { it == ' ' || it == '-' || it == '(' || it == ')' || it == '.' }
+        if (digits.isEmpty() || !digits.all { it in '0'..'9' } || digits.length !in 3..15) throw RpcError("bad_request", "number must be 3-15 digits")
+        return (if (plus) "+" else "") + digits
     }
 }

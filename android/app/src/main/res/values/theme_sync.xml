@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Beacon (com.tyler.primelauncher) signing cert SHA-256: the only app allowed to hold Emit's THEME_SYNC permission. -->
+    <string-array name="theme_sync_peer_certs" translatable="false">
+        <item>8ed51ffc2992fb32cc3d438d37dac0086ff0fc3f49a3d0126f3f6eae73cd6c7d</item>
+    </string-array>
+</resources>

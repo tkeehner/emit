@@ -22,7 +22,14 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
+    <!-- 0.1.50 theme sync with Beacon (different signing key): Emit's permission can only be held by Beacon's cert. -->
+    <permission android:name="com.example.emit.permission.THEME_SYNC"
+        android:protectionLevel="signature|knownSigner"
+        android:knownCerts="@array/theme_sync_peer_certs" />
+    <uses-permission android:name="com.tyler.primelauncher.permission.THEME_SYNC" />
+
     <queries>
+        <package android:name="com.tyler.primelauncher" />
         <intent><action android:name="android.speech.RecognitionService" /></intent>
         <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
     </queries>
@@ -67,6 +74,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".ui.ThemeSyncReceiver" android:exported="true"
+            android:permission="com.example.emit.permission.THEME_SYNC">
+            <intent-filter><action android:name="com.tyler.themesync.SET" /></intent-filter>
+        </receiver>
         <receiver android:name=".sms.SentStatusReceiver" android:exported="false" />
         <receiver android:name=".sms.DeliveryStatusReceiver" android:exported="false" />
         <receiver android:name=".sms.QuickReplyReceiver" android:exported="false" />

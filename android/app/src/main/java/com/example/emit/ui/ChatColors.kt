@@ -3,6 +3,7 @@ package com.example.emit.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 /** Neon palette for per-chat colors. Pure logic (unit-tested): ids, lookups, dim variant. */
@@ -46,6 +47,17 @@ object ChatPalette {
     }
 }
 
+/**
+ * Contact-name color (0.1.47): names are highlighted the way Prime's is, in the chat's chosen color.
+ * A chat left on the default color uses the theme's primary (the color Prime's name already uses).
+ * Lightened toward white only if needed to clear WCAG AA on [bg]; the hue is kept.
+ */
+object NameColor {
+    fun argb(chat: NeonColor, primary: Long, bg: Long): Long =
+        Pal.ensure(if (chat.id == ChatPalette.DEFAULT.id) primary else chat.argb, bg, 4.5)
+    fun isDefault(chat: NeonColor) = chat.id == ChatPalette.DEFAULT.id
+}
+
 /** Current accent for whatever is being drawn (a chat's color, or default green). */
 val LocalAccent = compositionLocalOf { ChatPalette.DEFAULT }
 
@@ -63,11 +75,39 @@ object Pal {
     const val BG = 0xFF000000L; const val S1 = 0xFF0B0F0CL; const val S2 = 0xFF111814L; const val LINE = 0xFF1C2A20L; const val LINE2 = 0xFF25382BL
     const val OUT_BG = 0xFF0C1A11L; const val OUT_LINE = 0xFF1F3D29L; const val OUT_LABEL = 0xFF5FAE79L
     const val CYAN = 0xFF4FE3F0L
-    val Primary = Color(PRIMARY); val Body = Color(BODY); val Dim = Color(DIM); val Faint = Color(FAINT)
-    val S1c = Color(S1); val S2c = Color(S2); val Line = Color(LINE); val Line2 = Color(LINE2)
-    val OutBg = Color(OUT_BG); val OutLine = Color(OUT_LINE); val OutLabel = Color(OUT_LABEL); val Cyan = Color(CYAN)
-    val R8 = androidx.compose.foundation.shape.RoundedCornerShape(8.dp); val R10 = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
-    val R12 = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+    /** Live colors. With the default theme these are the constants above; a theme swaps the whole set. */
+    val Primary: Color @Composable get() = Color(LocalTheme.current.palette.primary)
+    val Body: Color @Composable get() = Color(LocalTheme.current.palette.body)
+    val Dim: Color @Composable get() = Color(LocalTheme.current.palette.dim)
+    val Faint: Color @Composable get() = Color(LocalTheme.current.palette.faint)
+    val S1c: Color @Composable get() = Color(LocalTheme.current.palette.s1)
+    val S2c: Color @Composable get() = Color(LocalTheme.current.palette.s2)
+    val Line: Color @Composable get() = Color(LocalTheme.current.palette.line)
+    val Line2: Color @Composable get() = Color(LocalTheme.current.palette.line2)
+    val OutBg: Color @Composable get() = Color(LocalTheme.current.palette.outBg)
+    val OutLine: Color @Composable get() = Color(LocalTheme.current.palette.outLine)
+    val OutLabel: Color @Composable get() = Color(LocalTheme.current.palette.outLabel)
+    val Cyan: Color @Composable get() = Color(LocalTheme.current.palette.accent2)
+    val OnPrimary: Color @Composable get() = Color(LocalTheme.current.palette.onPrimary)
+    val WarnBg: Color @Composable get() = Color(LocalTheme.current.palette.warnBg)
+    val WarnLine: Color @Composable get() = Color(LocalTheme.current.palette.warnLine)
+    val PrimeBg: Color @Composable get() = Color(LocalTheme.current.palette.primeBg)
+    val Unread: Color @Composable get() = Color(LocalTheme.current.palette.unread)
+    val SelBg: Color @Composable get() = Color(LocalTheme.current.palette.selBg)
+    val ToggleOn: Color @Composable get() = Color(LocalTheme.current.palette.toggleOn)
+    val ToggleOff: Color @Composable get() = Color(LocalTheme.current.palette.toggleOff)
+    val RowLine: Color @Composable get() = Color(LocalTheme.current.palette.rowLine)
+    val Scrim: Color @Composable get() = Color(LocalTheme.current.palette.scrim)
+    val ScrimStrong: Color @Composable get() = Color(LocalTheme.current.palette.scrimStrong)
+    val MediaScrim: Color @Composable get() = Color(LocalTheme.current.palette.mediaScrim)
+    val Mark: Color @Composable get() = Color(LocalTheme.current.palette.mark)
+    val SearchBg: Color @Composable get() = Color(LocalTheme.current.palette.searchBg)
+    val SearchFg: Color @Composable get() = Color(LocalTheme.current.palette.searchFg)
+    val KeyDown: Color @Composable get() = Color(LocalTheme.current.palette.keyDown)
+    val Bg: Color @Composable get() = Color(LocalTheme.current.palette.bg)
+    val R8: Shape @Composable get() = LocalTheme.current.shape(8.dp)
+    val R10: Shape @Composable get() = LocalTheme.current.shape(10.dp)
+    val R12: Shape @Composable get() = LocalTheme.current.shape(12.dp)
 
     fun mix(a: Long, b: Long, t: Float): Long {
         fun ch(x: Long, sh: Int) = (x shr sh) and 0xFF
@@ -93,13 +133,17 @@ object Pal {
     /** Brightest rain pixel: accent at full glyph alpha times layer alpha, over black. */
     fun rainPeak(accent: Long, level: Int) = mix(BG, accent, RAIN[level])
     data class Tint(val bg: Long, val s1: Long, val line: Long, val incoming: Long, val name: Long)
-    fun tint(accent: Long): Tint {
-        val bg = mix(BG, accent, 0.035f); val s1 = mix(S1, accent, 0.055f); val line = mix(LINE, accent, 0.14f)
-        val incoming = ensure(mix(BODY, accent, 0.40f), s1, 4.5)
-        val name = ensure(mix(DIM, accent, 0.55f), bg, 4.5)
+    /** Defaults are the Matrix bases, so existing callers (and the contrast tests) stay on those numbers. */
+    fun tint(accent: Long, bg0: Long = BG, s10: Long = S1, line0: Long = LINE, body0: Long = BODY, dim0: Long = DIM): Tint {
+        val bg = mix(bg0, accent, 0.035f); val s1 = mix(s10, accent, 0.055f); val line = mix(line0, accent, 0.14f)
+        val incoming = ensure(mix(body0, accent, 0.40f), s1, 4.5)
+        val name = ensure(mix(dim0, accent, 0.55f), bg, 4.5)
         return Tint(bg, s1, line, incoming, name)
     }
 }
 
-/** Tint for the chat currently provided by LocalAccent. */
-val ChatTint: Pal.Tint @Composable get() = Pal.tint(LocalAccent.current.argb)
+/** Tint for the chat currently provided by LocalAccent, over the active theme's surfaces. */
+val ChatTint: Pal.Tint @Composable get() {
+    val p = LocalTheme.current.palette
+    return Pal.tint(LocalAccent.current.argb, p.bg, p.s1, p.line, p.body, p.dim)
+}

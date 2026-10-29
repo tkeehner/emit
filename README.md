@@ -16,6 +16,7 @@ Emit is an Android SMS/MMS app with a Windows companion and an optional self-hos
 
 ## Features
 - SMS/MMS messaging, group chats, scheduling, quick reply, link previews, a custom keyboard, and voice-to-text
+- Themes: Matrix (default), Neon City, ODST and Holiday, with optional theme sync with the Beacon launcher
 - An assistant chat over the PC link (never goes over SMS)
 - A PC companion (`msms`): a CLI, a local web UI, an MCP server for AI tools, and an `@bot` webhook bridge
 - Over-the-link app updates. The phone checks the signer and version, then waits for you to tap install

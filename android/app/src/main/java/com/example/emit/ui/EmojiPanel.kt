@@ -94,7 +94,7 @@ fun EmojiPanel(kb: KbController) {
         val list: List<Pair<Emoji?, String>> = if (cat == "recent") recent.map { byGlyph[it] to it }
             else all.filter { it.cat == cat }.map { it to it.e }
         Box(Modifier.fillMaxWidth().height(170.dp)) {
-            if (list.isEmpty()) Text(if (all.isEmpty()) "> loading emoji..." else "> no recent emoji yet", color = DimGreen, fontFamily = Mono,
+            if (list.isEmpty()) Text(if (all.isEmpty()) "> loading emoji..." else "> no recent emoji yet", color = DimGreen, fontFamily = UiFont,
                 modifier = Modifier.align(Alignment.Center))
             LazyVerticalGrid(GridCells.Adaptive(42.dp), state = grid, modifier = Modifier.fillMaxSize()) {
                 items(list, key = { it.second }) { (e, g) -> EmojiCell(e, g, 42) { pick(it) } }
@@ -102,7 +102,7 @@ fun EmojiPanel(kb: KbController) {
         }
         Row(Modifier.fillMaxWidth().height(50.dp), verticalAlignment = Alignment.CenterVertically) {
             @Composable fun K(label: String, w: Float, f: () -> Unit) = Box(Modifier.weight(w).fillMaxHeight().padding(2.dp)
-                .border(1.dp, DimGreen, Pal.R8).tap { f() }, contentAlignment = Alignment.Center) { Text(label, color = Green, fontFamily = Mono, fontSize = TypeScale.Body) }
+                .border(1.dp, DimGreen, Pal.R8).tap { f() }, contentAlignment = Alignment.Center) { Text(label, color = Green, fontFamily = UiFont, fontSize = TypeScale.Body) }
             K("ABC", 1.4f) { kb.emojiMode = false }
             K("🔍", 1f) { kb.emojiQuery = "" }
             K("space", 3f) { kb.separator(" ") }
@@ -121,8 +121,8 @@ fun EmojiSearchStrip(kb: KbController) {
     val hits = remember(all, q) { EmojiData.search(all, q) }
     Column {
         Row(Modifier.fillMaxWidth().height(30.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("search: $q▌", color = Green, fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-            Text("[x]", color = DimGreen, fontFamily = Mono, fontSize = TypeScale.Label, modifier = Modifier.tap { kb.emojiQuery = null }.padding(8.dp))
+            Text("search: $q▌", color = Green, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+            Text("[x]", color = DimGreen, fontFamily = UiFont, fontSize = TypeScale.Label, modifier = Modifier.tap { kb.emojiQuery = null }.padding(8.dp))
         }
         LazyRow(Modifier.fillMaxWidth().height(44.dp)) {
             items(hits, key = { it.e }) { e -> EmojiCell(e, e.e, 44) { g -> kb.edit { it.insert(g) }; recents.add(g) } }
