@@ -55,7 +55,7 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260814")
     implementation("org.bouncycastle:bcprov-jdk18on:1.77")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 }
