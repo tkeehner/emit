@@ -1,0 +1,68 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Emit // PC</title>
+<style>
+:root{--g:#00FF41;--d:#0a7a2a;--f:#063d17;--a:#FFB000;--r:#ff3355}
+*{box-sizing:border-box}body{margin:0;background:#000;color:var(--g);font:13px/1.4 Consolas,"Cascadia Mono",monospace;height:100vh;display:flex;flex-direction:column}
+header{padding:6px 10px;border-bottom:1px solid var(--f);display:flex;gap:12px;align-items:center}
+header b{letter-spacing:2px}#st{color:var(--d)}#st.bad{color:var(--r)}
+main{flex:1;display:grid;grid-template-columns:280px 1fr 300px;min-height:0}
+section{border-right:1px solid var(--f);display:flex;flex-direction:column;min-height:0}
+.scroll{overflow:auto;flex:1}h2{font-size:12px;margin:0;padding:6px 8px;color:var(--d);border-bottom:1px solid var(--f)}
+input,textarea,button{background:#000;color:var(--g);border:1px solid var(--d);font:inherit;padding:5px}
+button{cursor:pointer}button:hover{background:var(--f)}button.ok{border-color:var(--g)}button.no{color:var(--r);border-color:var(--r)}
+.t{padding:6px 8px;border-bottom:1px solid #021;cursor:pointer}.t:hover,.t.sel{background:var(--f)}
+.t .s{color:var(--d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.u::before{content:"● ";color:var(--g)}
+.m{margin:6px 10px;max-width:75%;padding:5px 8px;border:1px solid var(--f);white-space:pre-wrap;word-wrap:break-word}
+.m.o{margin-left:auto;border-color:var(--d)}.m .w{font-size:11px;color:var(--d)}.m img{max-width:240px;display:block;margin-top:4px}
+.dr{border:1px dashed var(--a);color:var(--a);margin:6px;padding:6px}.dr .row{display:flex;gap:6px;margin-top:6px}
+#comp{display:flex;gap:6px;padding:6px;border-top:1px solid var(--f)}#comp textarea{flex:1;height:52px;resize:none}
+.hint{color:var(--d);font-size:11px;padding:6px 8px}
+</style></head><body>
+<header><b>&gt; EMIT // PC</b><span id="st">connecting...</span><span style="flex:1"></span>
+<input id="q" placeholder="search messages" size="28"><button id="upd" title="send an Emit APK to the phone">[ phone update ]</button><input id="apk" type="file" accept=".apk" hidden></header>
+<main>
+<section><h2>THREADS</h2><div id="threads" class="scroll"></div></section>
+<section><h2 id="title">select a thread</h2><div id="msgs" class="scroll"></div>
+<div id="comp"><textarea id="body" placeholder="write a draft... (nothing sends without approval)"></textarea>
+<button id="mk">[ draft ]</button></div></section>
+<section><h2>APPROVAL QUEUE</h2><div class="hint">Drafts from AI tools land here and in the chat on your phone. Approve = send.</div>
+<div id="queue" class="scroll"></div>
+<h2>@BOT COMMANDS</h2><div id="botcfg" class="hint"></div><div id="bot" class="scroll"></div></section>
+</main>
+<script>
+const TOKEN="__TOKEN__";let cur=null,oldest=0;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tm=ms=>new Date(ms).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+async function get(u){const r=await fetch(u);const j=await r.json();if(!r.ok)throw new Error(j.error);return j}
+document.getElementById("upd").onclick=()=>document.getElementById("apk").click();
+document.getElementById("apk").onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=document.getElementById("upd");b.textContent="[ sending... ]";
+try{const r=await fetch("/api/update",{method:"POST",headers:{"Content-Type":"application/vnd.android.package-archive","X-MSMS-UI":TOKEN},body:f});const j=await r.json();if(!r.ok)throw new Error(j.error);
+alert("Phone accepted "+j.version_name+" ("+j.version_code+"). Tap the update button on the phone, then [ install ].")}catch(err){alert("Update failed: "+err.message)}b.textContent="[ phone update ]";e.target.value=""};
+async function post(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","X-MSMS-UI":TOKEN},body:JSON.stringify(b)});const j=await r.json();if(!r.ok)throw new Error(j.error);return j}
+async function status(){try{const s=await get("/api/status");$("st").className=s.connected?"":"bad";
+ $("st").textContent=s.connected?`linked: ${s.phone?.name} via ${s.transport}`:(s.paired?"phone unreachable - "+(s.error||""):"not paired - run: msms pair --host <phone-ip>")}catch(e){$("st").className="bad";$("st").textContent=e.message}}
+async function threads(){try{const r=await get("/api/threads");$("threads").innerHTML=r.threads.map(t=>
+ `<div class="t ${t.thread_id==cur?"sel":""}" data-id="${t.thread_id}"><div class="${t.unread?"u":""}">${esc(t.name)}${t.group?" [grp]":""}</div><div class="s">${esc(t.snippet)}</div></div>`).join("")}catch(e){}}
+function msgHtml(m){return `<div class="m ${m.outgoing?"o":""}"><div class="w">${m.outgoing?"me":esc(m.from_name||m.from)} · ${tm(m.date)}</div>${esc(m.body)}${
+ (m.media||[]).map(x=>x.mime.startsWith("image/")?`<img src="/api/media?part=${x.part_id}">`:x.mime.startsWith("video/")?`<video controls src="/api/media?part=${x.part_id}" width="240"></video>`:`<a href="/api/media?part=${x.part_id}">[${esc(x.mime)}]</a>`).join("")}</div>`}
+async function open(id,title){cur=id;$("title").textContent=title||("thread "+id);threads();const r=await get(`/api/thread?id=${id}&limit=40`);oldest=r.oldest_date;
+ $("msgs").innerHTML=(r.has_more?`<div class="hint"><button id="older">[ older ]</button></div>`:"")+r.messages.map(msgHtml).join("");$("msgs").scrollTop=1e9;
+ if($("older"))$("older").onclick=older}
+async function older(){const r=await get(`/api/thread?id=${cur}&limit=40&before=${oldest}`);oldest=r.oldest_date;$("older")?.parentElement.remove();
+ $("msgs").insertAdjacentHTML("afterbegin",(r.has_more?`<div class="hint"><button id="older">[ older ]</button></div>`:"")+r.messages.map(msgHtml).join(""));if($("older"))$("older").onclick=older}
+async function queue(){try{const r=await get("/api/drafts");const ds=r.drafts.filter(d=>d.status=="pending"||d.status=="awaiting").reverse();
+ $("queue").innerHTML=ds.length?ds.map(d=>`<div class="dr"><div>to thread ${d.thread_id}: ${esc((d.to||[]).join(", "))}</div><div style="color:var(--g);margin-top:4px">${esc(d.body)}</div>
+ <div class="w">${d.status} · ${tm(d.created)}</div><div class="row"><button class="ok" data-a="${d.draft_id}">[ APPROVE + SEND ]</button><button class="no" data-x="${d.draft_id}">[ deny ]</button></div></div>`).join(""):`<div class="hint">nothing waiting</div>`}catch(e){}}
+$("threads").onclick=e=>{const t=e.target.closest(".t");if(t)open(+t.dataset.id,t.querySelector("div").textContent)};
+$("queue").onclick=async e=>{const a=e.target.dataset.a,x=e.target.dataset.x;try{
+ if(a&&confirm("Send this message now?"))await post("/api/approve",{draft_id:+a});if(x)await post("/api/cancel",{draft_id:+x})}catch(err){alert(err.message)}queue();if(cur)open(cur,$("title").textContent)};
+$("mk").onclick=async()=>{const b=$("body").value.trim();if(!cur||!b)return;try{await post("/api/draft",{thread_id:cur,body:b});$("body").value="";queue()}catch(e){alert(e.message)}};
+$("q").onkeydown=async e=>{if(e.key!="Enter")return;const q=$("q").value.trim();if(!q)return;const r=await get("/api/search?q="+encodeURIComponent(q));cur=null;
+ $("title").textContent=`search: ${q} (${r.results.length})`;$("msgs").innerHTML=r.results.map(m=>`<div class="t" data-tid="${m.thread_id}">${msgHtml(m)}</div>`).join("");
+ $("msgs").querySelectorAll("[data-tid]").forEach(el=>el.onclick=()=>open(+el.dataset.tid))};
+let seq=0;async function poll(){for(;;){try{const r=await get("/api/events?since="+seq);seq=r.seq;if(r.events.length){threads();queue();if(cur)open(cur,$("title").textContent)}}catch(e){await new Promise(r=>setTimeout(r,3000))}}}
+async function bots(){try{const r=await get("/api/bot");const c=r.config;
+ $("botcfg").textContent=!r.active?"forwarding runs in another msms agent process":c.configured?`webhook: ${c.url} (${c.header}${c.scheme!="none"?" "+c.scheme:""}, key ${c.key})`:"webhook not set: msms bot set --url ... --key-file ...";
+ $("bot").innerHTML=r.items.length?r.items.map(i=>`<div class="d"><div>&gt; ${esc(i.instruction)}</div><div class="w">${esc(i.participants.join(", "))} · ${tm(i.received)} · ${esc(i.status)}${i.attempts>1?" ("+i.attempts+" tries)":""}${i.last_error?" · "+esc(i.last_error):""}</div></div>`).join(""):`<div class="hint">no @bot commands yet</div>`}catch(e){}}
+status();threads();queue();bots();poll();setInterval(status,15000);setInterval(queue,10000);setInterval(bots,5000);
+</script></body></html>
