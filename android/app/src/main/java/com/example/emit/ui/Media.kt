@@ -3,6 +3,11 @@ package com.example.emit.ui
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -132,6 +137,111 @@ fun FullscreenImage(uri: Uri, label: String = "", onSave: (suspend () -> String)
                 else Text("> decrypting image...", color = Green, fontFamily = UiFont)
             }
         }
+    }
+}
+
+/**
+ * 0.1.52: fullscreen viewer that swipes (or left/right arrow keys, or the on-screen ‹ › buttons) between every
+ * photo and video in the conversation, oldest to newest, with a "3/12" counter. No wrap-around.
+ * Zoomed-in photos pan instead of swiping; double-tap back to 1x to swipe again.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun FullscreenGallery(items: List<MediaGallery.Item>, start: Int, labelOf: (MediaGallery.Item) -> String,
+                      onSave: (MediaGallery.Item) -> (suspend () -> String), onClose: () -> Unit) {
+    if (items.isEmpty()) { onClose(); return }
+    Dialog(onClose, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        GalleryBody(items, start, labelOf, onSave, onClose)
+    }
+}
+
+/** Test seam: lets screenshot tests feed bitmaps without the MMS provider. Null in the app. */
+internal val LocalBitmapOverride = staticCompositionLocalOf<((Uri) -> Bitmap?)?> { null }
+
+/** The gallery without its Dialog window (so tests can render and drive it). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+internal fun GalleryBody(items: List<MediaGallery.Item>, start: Int, labelOf: (MediaGallery.Item) -> String,
+                         onSave: (MediaGallery.Item) -> (suspend () -> String), onClose: () -> Unit) {
+    run {
+        val pager = androidx.compose.foundation.pager.rememberPagerState(start.coerceIn(0, items.size - 1)) { items.size }
+        val scope = rememberCoroutineScope()
+        val reduce = rememberReduceMotion()
+        var chrome by remember { mutableStateOf(true) }
+        var zoomed by remember { mutableStateOf(false) }
+        val cur = pager.currentPage
+        val item = items[cur]
+        fun go(to: Int) { if (to != cur) scope.launch { if (reduce) pager.scrollToPage(to) else pager.animateScrollToPage(to) } }
+        val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+        LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+        val pos = MediaGallery.position(cur, items.size)
+        val label = listOf(labelOf(item), pos).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        Box(Modifier.fillMaxSize().focusRequester(focus).focusable().onKeyEvent { e ->
+            if (e.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) false
+            else when (e.key) {
+                androidx.compose.ui.input.key.Key.DirectionLeft -> { go(MediaGallery.prev(cur)); true }
+                androidx.compose.ui.input.key.Key.DirectionRight -> { go(MediaGallery.next(cur, items.size)); true }
+                else -> false
+            }
+        }) {
+            ViewerChrome(chrome, label, onSave(item), onClose) { top ->
+                androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.fillMaxSize().padding(top = top),
+                    userScrollEnabled = !zoomed, beyondViewportPageCount = 1, key = { items[it].media.partId }) { page ->
+                    val it = items[page]
+                    if (it.media.isImage) ZoomableImage(it.media.uri, active = page == cur, onTap = { chrome = !chrome }, onZoom = { z -> if (page == cur) zoomed = z })
+                    else if (page == cur) VideoPage(it.media.uri, onTap = { chrome = !chrome })
+                    else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("▶ video", color = Green, fontFamily = UiFont) }
+                }
+            }
+            if (chrome && items.size > 1) {
+                if (MediaGallery.hasPrev(cur)) NavArrow("‹", "previous photo", Modifier.align(Alignment.CenterStart)) { go(MediaGallery.prev(cur)) }
+                if (MediaGallery.hasNext(cur, items.size)) NavArrow("›", "next photo", Modifier.align(Alignment.CenterEnd)) { go(MediaGallery.next(cur, items.size)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavArrow(glyph: String, desc: String, modifier: Modifier, onClick: () -> Unit) =
+    Box(modifier.padding(8.dp).size(Ui.Touch).panel(Pal.MediaScrim, Pal.Line2, Pal.R12).androidSemantics(desc).tap { onClick() },
+        contentAlignment = Alignment.Center) { Text(glyph, color = Pal.Body, fontFamily = UiFont, fontSize = TypeScale.Title) }
+
+@Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun ZoomableImage(uri: Uri, active: Boolean, onTap: () -> Unit, onZoom: (Boolean) -> Unit) {
+    var scale by remember(uri) { mutableStateOf(1f) }
+    var offset by remember(uri) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    // Leaving a page resets its zoom so coming back starts at 1x.
+    LaunchedEffect(active) { if (!active) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } }
+    LaunchedEffect(scale, active) { if (active) onZoom(scale > 1f) }
+    val tf = androidx.compose.foundation.gestures.rememberTransformableState { zoom, pan, _ ->
+        scale = (scale * zoom).coerceIn(1f, 6f); offset = if (scale == 1f) androidx.compose.ui.geometry.Offset.Zero else offset + pan }
+    val ov = LocalBitmapOverride.current
+    val b = if (ov != null) remember(uri) { ov(uri) } else rememberBitmap(uri, 4096)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (b != null) Image(b.asImageBitmap(), "image, pinch to zoom, swipe for next", Modifier.fillMaxSize()
+            .pointerInput(uri) { detectTapGestures(onTap = { onTap() },
+                onDoubleTap = { if (scale > 1f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.5f }) }
+            // At 1x the pager owns horizontal drags; pinch still works.
+            .transformable(tf, lockRotationOnZoomPan = true, canPan = { scale > 1f })
+            .graphicsLayer { scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
+        else Text("> decrypting image...", color = Green, fontFamily = UiFont)
+    }
+}
+
+@Composable
+private fun VideoPage(uri: Uri, onTap: () -> Unit) {
+    var err by remember(uri) { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize().pointerInput(uri) { detectTapGestures(onTap = { onTap() }) }, contentAlignment = Alignment.Center) {
+        androidx.compose.ui.viewinterop.AndroidView(factory = { c ->
+            android.widget.VideoView(c).apply {
+                val mc = android.widget.MediaController(c); mc.setAnchorView(this); setMediaController(mc)
+                setOnPreparedListener { it.isLooping = false; start() }
+                setOnErrorListener { _, w, x -> android.util.Log.w("MatrixSMS", "video: error $w/$x"); err = true; true }
+                setVideoURI(uri)
+            }
+        }, onRelease = { it.stopPlayback() }, modifier = Modifier.fillMaxWidth())
+        if (err) Text("> can't play this video_", color = Amber, fontFamily = UiFont)
     }
 }
 

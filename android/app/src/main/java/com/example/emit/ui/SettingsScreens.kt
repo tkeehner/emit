@@ -227,6 +227,8 @@ fun LockScreen(onPrompt: () -> Unit, onUnlocked: () -> Unit) {
 
 object Changelog {
     val entries = listOf(
+        "0.1.52" to "photo viewer: swipe left/right (or arrow keys, or the ‹ › buttons) through every photo and video in the chat, sent and received, oldest to newest, with a 3/12 counter. Stops at the first and last; zoom in to pan, double-tap back to swipe",
+        "0.1.51" to "Beacon voice texts: \"Prime text <name> <message>\" on Beacon now sends straight through Emit (only Beacon can ask; never emergency numbers or short codes). Opening a new message from another app now fills in its text too.",
         "0.1.50" to "themes: new Holiday theme (candle-lit night, drifting bats, cobwebs, candles, tombstones and skulls, a shaded holiday character for every contact). Emit and Beacon now switch themes together.",
         "0.1.49" to "themes: new ODST theme (rainy night city, amber + steel comms panels with callsign headers, hex callsign badges, VISR outlines, armor-plate keys, a TRANSMISSION SENT squelch on send; the city switches to VISR outlines after 7 pm). Matrix stays the default",
         "0.1.48" to "Prime Link: Prime can stage a text to someone you haven't texted before (new thread). It still waits for your APPROVE tap",
@@ -239,7 +241,7 @@ object Changelog {
         "0.1.41" to "pinned Prime chat at the top of the inbox: talk to your assistant directly over the PC link (never SMS); replies show up as messages with a notification",
         "0.1.40" to "renamed to Emit (app name, headers, About, lock screen, notifications); same app id and signing key, so updates and data carry over",
         "0.1.39" to "chat header shows just the name (number moved to chat options / info); SMS or MMS · N chip",
-        "0.1.38" to "real contact names everywhere (spaces and capitals kept), formatted numbers as fallback, groups as 'Mom, Devin, Jonathan'",
+        "0.1.38" to "real contact names everywhere (spaces and capitals kept), formatted numbers as fallback, groups as 'Mom, Gavin, Jonathan'",
         "0.1.37" to "fix: code rain now actually shows inside chats (was hidden under the chat tint); stronger 'more' level; static rain with reduced motion",
         "0.1.36" to "multi-select: slim selection header with all/none, bulk pin, mute, archive and delete; same header for message selection; faint code rain behind inbox and chats (Settings > display: off / subtle / more)",
         "0.1.35" to "chat options sheet restyled (toggle cards, color swatches, menu rows, danger zone, swipe down to close); NEW button hides behind sheets; image/video viewer: slim top bar (back, sender + time, save), tap to hide, in-app save notice",

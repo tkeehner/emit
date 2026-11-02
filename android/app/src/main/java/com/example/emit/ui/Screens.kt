@@ -685,7 +685,14 @@ fun ThreadScreen(
             }
         } }
         viewing?.let { md ->
-            if (md.isImage) FullscreenImage(md.uri, viewingLabel, onSave = { MediaSaver.saveResult(ctx, md.uri, md.mime) }) { viewing = null }
+            // 0.1.52: swipe / arrow keys / ‹ › between every photo and video in this chat (sent + received), oldest first.
+            val gallery = remember(msgs) { MediaGallery.build(msgs) }
+            val at = MediaGallery.indexOf(gallery, md)
+            val byKey = remember(msgs) { msgs.associateBy { it.key } }
+            if (at >= 0) FullscreenGallery(gallery, at,
+                labelOf = { g -> byKey[g.messageKey]?.let { whoOf(it) + " · " + stamp(it.date) } ?: stamp(g.date) },
+                onSave = { g -> { MediaSaver.saveResult(ctx, g.media.uri, g.media.mime) } }) { viewing = null }
+            else if (md.isImage) FullscreenImage(md.uri, viewingLabel, onSave = { MediaSaver.saveResult(ctx, md.uri, md.mime) }) { viewing = null }
             else if (md.mime.startsWith("video/")) FullscreenVideo(md.uri, viewingLabel, onSave = { MediaSaver.saveResult(ctx, md.uri, md.mime) }) { viewing = null }
             else viewing = null
         }

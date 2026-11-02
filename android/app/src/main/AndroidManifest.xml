@@ -27,6 +27,10 @@
         android:protectionLevel="signature|knownSigner"
         android:knownCerts="@array/theme_sync_peer_certs" />
     <uses-permission android:name="com.tyler.primelauncher.permission.THEME_SYNC" />
+    <!-- 0.1.51: Beacon's "Prime text <name> <message>" voice command sends through Emit. Only Beacon's cert can hold this. -->
+    <permission android:name="com.example.emit.permission.SEND_FROM_BEACON"
+        android:protectionLevel="signature|knownSigner"
+        android:knownCerts="@array/theme_sync_peer_certs" />
 
     <queries>
         <package android:name="com.tyler.primelauncher" />
@@ -77,6 +81,10 @@
         <receiver android:name=".ui.ThemeSyncReceiver" android:exported="true"
             android:permission="com.example.emit.permission.THEME_SYNC">
             <intent-filter><action android:name="com.tyler.themesync.SET" /></intent-filter>
+        </receiver>
+        <receiver android:name=".sms.BeaconSendReceiver" android:exported="true"
+            android:permission="com.example.emit.permission.SEND_FROM_BEACON">
+            <intent-filter><action android:name="com.example.emit.action.SEND_FROM_BEACON" /></intent-filter>
         </receiver>
         <receiver android:name=".sms.SentStatusReceiver" android:exported="false" />
         <receiver android:name=".sms.DeliveryStatusReceiver" android:exported="false" />

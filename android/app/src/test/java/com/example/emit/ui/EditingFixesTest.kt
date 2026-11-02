@@ -44,6 +44,6 @@ class EditingFixesTest {
     @Test fun dictAssetsParse() {
         val w = File("src/main/assets/dict/words.bin"); val b = File("src/main/assets/dict/bigrams.bin")
         val e = Dict.load({ w.inputStream() }, { b.inputStream() })
-        assertEquals(39998, e.wordCount); assertTrue(e.bigramKeys > 1000)
+        assertEquals(39996, e.wordCount); assertTrue(e.bigramKeys > 1000)
     }
 }

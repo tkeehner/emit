@@ -40,12 +40,12 @@ def test_forward_with_bearer_and_ack(env):
     bot.set_config(store, h.url, str(kf))
     a = bot.BotAgent(c, store, keepalive=0.2).start()
     assert until(c.connected)
-    d = phone.bot_command("@bot make fun of Devin")
+    d = phone.bot_command("@bot make fun of Gavin")
     assert until(lambda: h.got)
     hdr, body = h.got[0]
     assert hdr["Authorization"] == "Bearer sekret-123"
     assert body["source"] == "matrix-sms" and body["type"] == "bot_command" and body["from_self"] is True
-    assert body["instruction"] == "@bot make fun of Devin" and body["thread_id"] == 1 and body["participants"] and body["context"]
+    assert body["instruction"] == "@bot make fun of Gavin" and body["thread_id"] == 1 and body["participants"] and body["context"]
     assert until(lambda: d["cmd_id"] in phone.bot_acks)
     assert a.recent()[0]["status"] == "delivered"
 

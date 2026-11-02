@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.emit"
         minSdk = 29
         targetSdk = 35
-        versionCode = 51
-        versionName = "0.1.50"
+        versionCode = 53
+        versionName = "0.1.52"
     }
     // Release signing is config-driven: copy keystore.properties.example to keystore.properties (gitignored), or set
     // EMIT_STORE_FILE / EMIT_STORE_PASSWORD / EMIT_KEY_ALIAS / EMIT_KEY_PASSWORD. With neither, release uses the debug signing config.

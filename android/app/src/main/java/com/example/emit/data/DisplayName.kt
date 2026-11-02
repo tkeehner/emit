@@ -19,7 +19,7 @@ object DisplayName {
         val isNumber = n.isNotEmpty() && n.none { it.isLetter() } && n.count { it.isDigit() } >= 3
         return if (n.isEmpty() || isNumber || n == address) phone(address.ifBlank { n }) else n
     }
-    /** Group/1:1 chat title: custom label, else "Mom, Devin, Jonathan". */
+    /** Group/1:1 chat title: custom label, else "Mom, Gavin, Jonathan". */
     fun chat(label: String?, names: List<String>, addresses: List<String>): String {
         label?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         if (addresses.isEmpty()) return names.joinToString(", ").ifBlank { "unknown" }

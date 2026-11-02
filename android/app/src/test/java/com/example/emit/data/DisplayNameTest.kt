@@ -20,13 +20,13 @@ class DisplayNameTest {
         assertEquals("unknown", DisplayName.person(null, ""))
     }
     @Test fun groupTitles() {
-        assertEquals("Mom, Devin, Jonathan", DisplayName.chat(null, listOf("Mom", "Devin", "Jonathan"), listOf("1", "2", "3")))
+        assertEquals("Mom, Gavin, Jonathan", DisplayName.chat(null, listOf("Mom", "Gavin", "Jonathan"), listOf("1", "2", "3")))
         assertEquals("Mom, (555) 123-4567", DisplayName.chat(null, listOf("Mom", "5551234567"), listOf("+1555000", "5551234567")))
         assertEquals("Tacos crew", DisplayName.chat(" Tacos crew ", listOf("Mom"), listOf("1")))
         assertEquals("Ryan's Mom", Conversation(1, listOf("+15551234567"), listOf("Ryan's Mom"), "", 0, false).displayName)
     }
     @Test fun senderLabelsUseRealName() =
-        assertEquals("Ryan's Mom", ThreadMapping.senderName("+15551234567", listOf("+15551234567", "+15550000000"), listOf("Ryan's Mom", "Devin")))
+        assertEquals("Ryan's Mom", ThreadMapping.senderName("+15551234567", listOf("+15551234567", "+15550000000"), listOf("Ryan's Mom", "Gavin")))
     @Test fun quoteKeepsSpacedNames() =
         assertEquals("Ryan's Mom", MessageMeta.parseQuote(MessageMeta.quote("Ryan's Mom", "hi") + "ok")!!.who)
 }

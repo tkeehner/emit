@@ -9,7 +9,8 @@ import com.example.emit.data.ThreadMapping
 
 /**
  * The ONLY place that sends SMS. Called exclusively from explicit user taps
- * (SEND button, or APPROVE on a Prime draft). Nothing calls this automatically.
+ * (SEND button, or APPROVE on a Prime draft), and 0.1.51 [BeaconSendReceiver]: the user's own "Prime text <name> <message>"
+ * voice command in Beacon (he asked for it to send without a review step). Nothing else calls this automatically.
  */
 object SmsSender {
     sealed interface Result { data object Sent : Result; data class Refused(val reason: String) : Result }

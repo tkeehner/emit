@@ -8,7 +8,7 @@ import org.junit.Test
 class BotCommandTest {
     private fun own(t: String, en: Boolean = true) = BotLogic.instruction(t, fromSelf = true, fromComposer = true, enabled = en)
     @Test fun ownComposerTriggers() {
-        assertEquals("@bot roast Devin", own("  @bot roast Devin "))
+        assertEquals("@bot roast Gavin", own("  @bot roast Gavin "))
         assertEquals("@BOT hi", own("@BOT hi"))
         assertEquals("@Bot", own("@Bot"))
         assertEquals("@bot, do it", own("@bot, do it"))

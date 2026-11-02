@@ -124,7 +124,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (i.getBooleanExtra(EXTRA_PRIME, false)) { screen = Screen.Prime; return }
         if (i.action == Intent.ACTION_SENDTO || i.action == Intent.ACTION_SEND) {
             val addr = i.data?.schemeSpecificPart?.substringBefore('?')?.let(Uri::decode) ?: ""
-            screen = Screen.Compose(addr)
+            // 0.1.51: prefill the body too (Beacon's "text" fallback, other apps' sms_body)
+            val body = (i.getStringExtra("sms_body") ?: i.getStringExtra(Intent.EXTRA_TEXT)).orEmpty().take(2000)
+            screen = Screen.Compose(addr, body)
         }
     }
 

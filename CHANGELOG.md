@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.52
+- Photo viewer swipes: open any photo full screen, then swipe left/right (or use arrow keys) through every sent and received photo in the conversation, with a position counter and pinch-zoom.
+## 0.1.51
+- Optional `SEND_FROM_BEACON` receiver so the Beacon launcher's "Prime text <name> <message>" voice command can send through Emit's normal send path. Guarded by a `signature|knownSigner` permission (only the peer app's cert), and it refuses emergency/short codes, empty or overlong bodies, rapid repeats, and runs only while Emit is the default SMS app. Compose now honours `sms_body` prefill.
 ## 0.1.50
 - New Holiday theme: candle-lit night, drifting spooky side icons, and a stable shaded holiday character for every contact (`AvatarStyle.HOLIDAY`). Turned on manually in settings > theme.
 - Two-way theme sync with the Beacon launcher. Each app defines a `signature|knownSigner` permission that only the other app's signing cert may hold, and theme changes go out as explicit broadcasts.
